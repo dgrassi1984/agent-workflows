@@ -23,6 +23,9 @@ jobs:
       - name: setup_repo still parses remotes and renders an overlay
         run: python scripts/setup_repo.py --self-test
 
+      - name: A repo install gitignores the files it added
+        run: python scripts/gen_agent_wrappers.py --self-test
+
       - name: The code map generator is deterministic
         run: python scripts/gen_codemap.py --self-test
 

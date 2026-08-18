@@ -6,8 +6,11 @@ small overlay that supplies the *names* — which forge, which labels, which
 command is the gate. This command walks those decisions interactively, writes
 what you decide, and leaves a commented placeholder for every key you skip.
 
-It never copies a workflow into the project. That is the failure this repo
+It never copies a procedure into the project. That is the failure this repo
 exists to stop: five drifting procedures, each half-rewritten for one codebase.
+It does write generated *pointers* into the project's harness skill
+directories so a harness that scans the checkout can invoke them, and it
+gitignores those files — they are regenerated, not owned by the project.
 
 Usage, from the project you want to bind::
 
@@ -22,7 +25,9 @@ can see on disk and leaves placeholders for the rest. It will not invent a
 gate or a release ritual. Branch prefixes are read from `origin`, not typed.
 Issue labels you opt into (`human-approved`, `wip`, `design-needed`, a
 severity scheme) are created on the forge if they are missing. A yes to the
-code map writes `docs/CODEMAP.md` from tracked sources.
+code map writes `docs/CODEMAP.md` from tracked sources. Generated skill
+wrappers land in the project's harness directories and are added to
+`.gitignore`.
 
 The overlay goes to `docs/agent-overlay.yaml` when `docs/` exists, otherwise
 the repo root. It will not overwrite without `--force` (non-interactive) or an
@@ -84,12 +89,33 @@ LABEL_META: dict[str, tuple[str, str]] = {
 GENERIC_LABEL = ("Used by the agent-workflows overlay.", "5319E7")
 
 
+def profile_root() -> Path:
+    """The primary checkout, even when this file is running from a worktree."""
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "--git-common-dir"],
+            cwd=REPO,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return REPO
+    git_dir = Path(proc.stdout.strip())
+    if not git_dir.is_absolute():
+        git_dir = (REPO / git_dir).resolve()
+    if git_dir.name == ".git":
+        return git_dir.parent
+    return REPO
+
+
 def profile_label() -> str:
     """How this repo should be named in a comment an agent will read."""
+    root = profile_root()
     try:
-        return "~/" + str(REPO.relative_to(HOME))
+        return "~/" + str(root.relative_to(HOME))
     except ValueError:
-        return str(REPO)
+        return str(root)
 
 
 def yaml_str(value: str) -> str:
@@ -310,6 +336,16 @@ def generate_codemap(cwd: Path) -> int:
     script = REPO / "scripts" / "gen_codemap.py"
     proc = subprocess.run(
         [sys.executable, str(script), "--root", str(cwd)],
+        cwd=cwd,
+    )
+    return proc.returncode
+
+
+def install_wrappers(cwd: Path) -> int:
+    """Write generated skill pointers into the checkout and gitignore them."""
+    script = REPO / "scripts" / "gen_agent_wrappers.py"
+    proc = subprocess.run(
+        [sys.executable, str(script), "--repo", str(cwd)],
         cwd=cwd,
     )
     return proc.returncode
@@ -567,6 +603,10 @@ def recap(info: Overlay, cwd: Path) -> bool:
         _note("labels:       " + ", ".join(labels) + "  (create on the forge if missing)")
     if info.install_codemap:
         _note(f"codemap:      generate {info.codemap} from tracked sources")
+    _note(
+        "wrappers:     generate into .claude/skills, .codex/skills, "
+        ".opencode/skills, .agents/skills (gitignored)"
+    )
     return ask_yesno("Write this overlay?", True)
 
 
@@ -1078,6 +1118,9 @@ def main() -> int:
         _note(f"generating {info.codemap} from tracked sources")
         if generate_codemap(cwd) != 0:
             return 1
+    _note("installing generated skill wrappers and gitignoring them")
+    if install_wrappers(cwd) != 0:
+        return 1
     return 0
 
 

@@ -37,6 +37,26 @@ from pathlib import Path
 
 PROFILE = Path(__file__).resolve().parent.parent
 
+
+def _canonical_profile() -> Path:
+    """The primary checkout, even when this file is running from a worktree."""
+    try:
+        proc = subprocess.run(
+            ["git", "rev-parse", "--git-common-dir"],
+            cwd=PROFILE,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return PROFILE
+    git_dir = Path(proc.stdout.strip())
+    if not git_dir.is_absolute():
+        git_dir = (PROFILE / git_dir).resolve()
+    if git_dir.name == ".git":
+        return git_dir.parent
+    return PROFILE
+
 SKELETON = Path("docs/CODEMAP.md")
 PYTHON_DOC = Path("docs/codemap/python.md")
 ROUTES_DOC = Path("docs/codemap/routes.md")
@@ -276,10 +296,11 @@ def collect_npm_scripts(root: Path, files: list[str]) -> list[tuple[str, str]]:
 
 
 def _banner(root: Path) -> list[str]:
+    profile = _canonical_profile()
     try:
-        here = "~/" + str(PROFILE.relative_to(Path.home()))
+        here = "~/" + str(profile.relative_to(Path.home()))
     except ValueError:
-        here = str(PROFILE)
+        here = str(profile)
     relative = root.resolve() == PROFILE.resolve()
     regen = "`make map`" if relative else f"`python3 {here}/scripts/gen_codemap.py`"
     check = "`make map-check`" if relative else f"`python3 {here}/scripts/gen_codemap.py --check`"
