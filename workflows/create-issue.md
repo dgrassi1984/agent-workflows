@@ -202,6 +202,10 @@ Link what it came out of — an issue that came from reviewing a pull request, o
 that supersedes another, is far more useful linked than described. This is the
 step most often forgotten.
 
+If the project's conventions require an agent signature, post one now
+(`issue.comment`) using `references/agent-signature.md`. This workflow is
+`create-issue`; the action is `filed-issue`. Do not invent a different pair.
+
 Report the issue number and URL to the user, with the labels you set.
 
 ## What not to file

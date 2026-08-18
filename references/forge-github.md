@@ -28,6 +28,7 @@ Verified against `gh` 2.64.
 | `pr.open-list` | `gh pr list --state open` |
 | `pr.search` | `gh pr list --state open --search "<terms>"` |
 | `pr.create` | `gh pr create --base <default_branch> --head <branch> --title "<t>" --body-file <path>` |
+| `pr.comment` | `gh pr comment <N> --body-file <path>` |
 | `pr.view` | `gh pr view <N>` |
 | `pr.diff-names` | `gh pr diff <N> --name-only` |
 | `pr.for-current-branch` | `gh pr view` (no argument) |

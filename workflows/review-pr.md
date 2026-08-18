@@ -62,6 +62,10 @@ git diff --stat origin/<default_branch>...<SHA>
 checkout overwrites it, and your later commands then silently describe their
 branch. Resolve it to a SHA once, at the top, and use that SHA from then on.
 
+If the project's conventions require an agent signature, post `review-started`
+on the pull request now (`references/agent-signature.md`). This workflow is
+`review-pr`.
+
 Reading the diff is all you may do in the primary checkout. To run anything, take
 the branch out into a worktree of your own. A review needs no branch, so detach:
 
@@ -193,6 +197,10 @@ If you fix something, add a regression test that fails without it, and **prove**
 it goes red rather than asserting it. If the user authorizes only some findings,
 change only those and preserve the rest in the handoff rather than silently
 treating them as resolved.
+
+If the project's conventions require an agent signature, post `reviewed-pr` on
+the pull request and on the linked issue (`references/agent-signature.md`)
+once the review has actually concluded — not before.
 
 ## Merging
 

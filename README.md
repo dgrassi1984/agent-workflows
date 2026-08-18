@@ -28,7 +28,8 @@ here follows from that.
 ```
 workflows/      the procedures — one file per command, frontmatter + body
 references/     what several workflows share: the overlay contract, the worktree
-                rule, the per-forge command dialects, the reporting contract
+                rule, the per-forge command dialects, the reporting contract,
+                the signature vocabulary
 skills/         reference skills (knowledge, not procedure), copied verbatim
 scripts/        the wrapper generator, the guards, project setup, and the code map
 docs/CODEMAP.md the derived map of *this* repo (regenerate with `make map`)

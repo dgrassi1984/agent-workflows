@@ -95,6 +95,11 @@ After they pick:
 
 Do not rewrite history. The original body stays; the comment is the addendum.
 
+If the project's conventions require an agent signature, post `clarified-design`
+on the issue now (`references/agent-signature.md`). This workflow is
+`clarify-design`. Sign only an issue whose leftover shape is now specified —
+not one you only asked about, and not one you kept blocked.
+
 ### 5. Report what you did
 
 For each issue: recap, decision, new state (blocking label dropped / closed).

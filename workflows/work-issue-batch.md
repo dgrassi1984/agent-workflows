@@ -102,7 +102,9 @@ big is how a queue fills with approved work nobody touches.
 
 As soon as the batch is chosen — before the worktree, and before any edit —
 `issue.label-add` the claim label on every issue in it, then `issue.labels-of` to
-confirm it took.
+confirm it took. If the project's conventions require an agent signature, post
+`started-work` on each issue now (`references/agent-signature.md`). This
+workflow is `work-issue-batch`; the actions are the same ones `work-issue` uses.
 
 Leave the claim on for the whole implementation. Remove it only when the issue is
 closed, or when a pull request is opened that links it. Never drop it mid-batch
@@ -135,7 +137,10 @@ deliberately rather than by momentum.
 ### 5. Open the pull request
 
 Push and open it per `work-issue.md` step 8. The body already carries a closing
-keyword per issue; that is a link, so `issue.label-remove` the claim.
+keyword per issue; that is a link, so `issue.label-remove` the claim. If the
+project's conventions require an agent signature, post `developed-issue` on
+each issue and `opened-pr` on the pull request — still
+`workflow=work-issue-batch`.
 
 **If `ship.enabled` is not true, stop here** and report. Everything below is the
 shipping half.

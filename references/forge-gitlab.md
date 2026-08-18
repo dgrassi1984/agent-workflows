@@ -29,6 +29,7 @@ has no equivalent, this file says so rather than offering a plausible flag.
 | `pr.open-list` | `glab mr list` |
 | `pr.search` | `glab mr list --search "<terms>"` |
 | `pr.create` | `glab mr create -b <default_branch> -s <branch> -t "<t>" -d "$(cat <path>)" -y` |
+| `pr.comment` | `glab mr note <N> -m "$(cat <path>)"` |
 | `pr.view` | `glab mr view <N>` |
 | `pr.diff-names` | `glab mr diff <N>` (no `--name-only`; use `git diff --name-only <base>...<sha>`) |
 | `pr.for-current-branch` | `glab mr view` (no argument) |

@@ -96,7 +96,9 @@ Claim the issue as soon as the worktree exists, before any edit — `issue.label
 with the claim label, then `issue.labels-of` to confirm it took. Leave it on for
 the whole implementation. Remove it only when a pull request is opened that links
 the issue, or if the issue is closed without one. This workflow stops at an open
-pull request, so the removal is step 8.
+pull request, so the removal is step 8. If the project's conventions require an
+agent signature, post `started-work` on the issue now
+(`references/agent-signature.md`).
 
 **Everything from here — edits, tests, the app you drive, the commit, the push —
 happens in that worktree.**
@@ -288,6 +290,10 @@ what you could **not** verify and why, test results, and docs.
 
 The linked pull request is now the claim, so `issue.label-remove` the claim
 label.
+
+If the project's conventions require an agent signature, post `developed-issue`
+on the issue and `opened-pr` on the pull request
+(`references/agent-signature.md`). This workflow is `work-issue`.
 
 **Do not close the issue by hand, bump a version, tag, or deploy.** Opening a
 pull request is not shipping, and this workflow does not ship even where the
