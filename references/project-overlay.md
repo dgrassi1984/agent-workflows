@@ -44,6 +44,10 @@ you opt into are created on the forge if they are missing (`human-approved`,
 `wip`, `design-needed`, and the severity scheme you pick). A yes to the code
 map writes `docs/CODEMAP.md` from tracked sources (the generator lives in
 this repo) and sets `docs_move_with_code` so later sessions regenerate it.
+It also writes generated skill wrappers into the project's harness
+directories and adds those paths to `.gitignore` — they are pointers at
+this repo, not project-owned content. Refresh them with
+`python3 ~/Development/agent-workflows/scripts/gen_agent_wrappers.py --repo .`.
 Every key in this document appears in the file. A
 decision becomes a binding; a skip becomes a commented placeholder with the
 conservative default, so the next edit is filling a blank rather than

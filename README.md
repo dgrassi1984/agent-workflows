@@ -40,9 +40,10 @@ overlay.schema.json
 
 ```bash
 make install     # write every workflow and reference skill into each harness
+make install-repo DIR=../myproject  # same wrappers, inside a checkout, gitignored
 make check       # what CI runs: the guards + harness freshness
 make overlay     # validate every project overlay under ~/Development
-make setup-repo DIR=../myproject   # bind a checkout: write its overlay
+make setup-repo DIR=../myproject   # bind a checkout: overlay + gitignored wrappers
 make map         # regenerate docs/CODEMAP.md from tracked sources
 make map DIR=../myproject
 ```
@@ -81,7 +82,12 @@ gate is, whether this project may ship, whether to generate a code map.
 Labels you opt into (`human-approved`, `wip`, `design-needed`, a severity
 scheme) are created on the forge if they are missing. A yes to the code map
 writes `docs/CODEMAP.md` from tracked sources and sets `docs_move_with_code`
-so later sessions regenerate it. Every overlay key ends up in the file, either as a binding or as
+so later sessions regenerate it. It also writes generated skill wrappers
+into the project's harness directories (`.claude/skills`, `.codex/skills`,
+`.opencode/skills`, `.agents/skills`) and adds those paths to `.gitignore`.
+The overlay is the project's; the wrappers are pointers and must not be
+committed. Re-run `make install-repo DIR=/path/to/project` to refresh them.
+Every overlay key ends up in the file, either as a binding or as
 a commented placeholder. `--non-interactive` skips the questions.
 `--print` dry-runs; `--force` overwrites. The key set, and what a missing key
 means, lives in `references/project-overlay.md`.
