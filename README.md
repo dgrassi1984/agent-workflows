@@ -62,7 +62,7 @@ that says so.
 
 Each harness gets a short generated wrapper that **points** at
 `workflows/<name>.md` rather than copying it: one copy on disk, and an edit takes
-effect without reinstalling. The same five workflows and five reference skills
+effect without reinstalling. The same six workflows and five reference skills
 land in every harness.
 
 ## Adding a project

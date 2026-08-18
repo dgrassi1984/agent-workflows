@@ -34,22 +34,33 @@ has no equivalent, this file says so rather than offering a plausible flag.
 | `pr.diff-names` | `glab mr diff <N>` (no `--name-only`; use `git diff --name-only <base>...<sha>`) |
 | `pr.for-current-branch` | `glab mr view` (no argument) |
 | `pr.fetch-head` | `git fetch origin merge-requests/<N>/head` |
+| `pr.update-body` | `glab mr update <N> -d "$(cat <path>)" -y` |
+| `pr.checks` | `glab ci status --branch=<source-branch>` |
+| `pr.merge` | `glab mr merge <N> --sha <SHA> -y` plus `--squash` if that is customary, and `-d` only if this repo deletes source branches |
 
 ## Where it differs, and it matters
 
-- **There is no `--body-file`, anywhere.** `glab issue create` and
-  `glab mr create` take `-d/--description` as a *string*. Still write the body to
-  a file, then pass `-d "$(cat <path>)"` — the reason for the file (backticks,
-  `$`, newlines surviving your shell) is unchanged, and command substitution
-  preserves them. `-d -` opens an editor, which is useless to an agent.
+- **There is no `--body-file`, anywhere.** `glab issue create`,
+  `glab mr create` and `glab mr update` take `-d/--description` as a *string*.
+  Still write the body to a file, then pass `-d "$(cat <path>)"` — the reason
+  for the file (backticks, `$`, newlines surviving your shell) is unchanged,
+  and command substitution preserves them. `-d -` opens an editor, which is
+  useless to an agent.
 - **`glab issue close` has no `--comment`.** Closing with a real explanation is
   two commands: leave the note first, then close. Do not drop the explanation
   because the flag is missing — a bare close is the thing the workflows forbid.
-- **Pass `-y`** to `issue create` / `mr create`, or the command waits on a
-  confirmation prompt that no agent will answer.
+- **Pass `-y`** to `issue create` / `mr create` / `mr update` / `mr merge`, or
+  the command waits on a confirmation prompt that no agent will answer.
 - **The closing keyword is `Closes #<N>`** in the merge request description, same
   as GitHub, and it refers to an *issue* `#N` even though the MR itself is `!N`.
 - **`glab mr diff` prints a diff, not names.** For a file list, resolve the head
   SHA and use `git diff --name-only <default_branch>...<sha>`.
 - **JSON output is `-F json`** on `view`, `-O json` on `list`. They are not the
   same flag; check the subcommand rather than assuming.
+- **`--sha` is the source-SHA guard.** Never omit it. Confirm the merge by
+  fetching the target and comparing trees, not by the command's success
+  message.
+- **`glab ci status` is branch-scoped, not merge-request-scoped.** Pass the
+  source branch, and confirm the pipeline SHA is the source SHA you are about
+  to merge. There is no `--required` filter; read the status rather than
+  treating a running pipeline as a pass.

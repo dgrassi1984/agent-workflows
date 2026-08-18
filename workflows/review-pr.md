@@ -9,8 +9,9 @@ description: >-
   wants it reviewed, checked, or assessed before merge — "review PR 556", "is
   this safe to merge?", a bare pull-request URL, or a request to look over
   someone else's branch. Also use it before merging work an agent produced in
-  another session. Do not use it to implement an issue, to file a new issue, or
-  to release and deploy.
+  another session. Do not use it to implement an issue, to file a new issue, to
+  release and deploy, or to repair and merge a batch of pull requests — that
+  last one is land-prs.
 argument-hint: "[PR number or URL] (defaults to the PR for the current branch)"
 display_name: "Review a PR"
 short_description: "Hunt this repo's silent failures in a PR before it lands"
@@ -21,7 +22,8 @@ wrapper_note: |-
   **detached** worktree first. Never `checkout`, `stash` or `checkout <ref> -- .`
   in the primary checkout itself: parallel sessions are reading those files.
 
-  Merge only when explicitly asked.
+  This workflow reviews. If the user authorized repair and merge, stop and
+  follow `land-prs.md` instead.
 ---
 
 # Review a pull request
@@ -204,9 +206,12 @@ once the review has actually concluded — not before.
 
 ## Merging
 
-Merge only when asked. Then remove the review worktrees and undo their
-provisioning — each one left behind holds a checkout and whatever the
-provisioning step created.
+If the user authorized repair and merge — including "fix the blockers and
+merge", or more than one pull request — stop and follow `land-prs.md`. That
+workflow owns sequencing, repair, force-with-lease, and the source-SHA guard.
 
-If the default branch is red for unrelated reasons, say so in the report rather
-than quietly merging onto red. That is the operator's call.
+A clean single pull request the user asked to merge, with no rewrite, may be
+merged from here: `pr.merge` with the exact source-SHA guard, then remove the
+review worktrees and undo their provisioning. If the default branch is red for
+unrelated reasons, say so in the report rather than quietly merging onto red.
+That is the operator's call.

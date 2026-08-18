@@ -116,7 +116,9 @@ git rev-list --left-right --count <branch>...origin/<branch>  # 0 0 = landed
 
 **Never confirm a push by reading its output. Compare the refs.** If
 `origin/<default_branch>` is not an ancestor of `HEAD`, a parallel session pushed
-while you worked: rebase, never force-push.
+while you worked: rebase, never force-push. Rewriting a pull request's source
+branch is a different job and lives in `land-prs.md`: exact
+`--force-with-lease` bound to the reviewed remote SHA, never `--force`.
 
 ## Remove it when the work is done
 

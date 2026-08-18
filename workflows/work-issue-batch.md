@@ -9,8 +9,8 @@ description: >-
   the open issues, clear the backlog, or pick up where a prior batch session left
   off — "keep going", "ship the next batch", "work the queue". This is the
   shipping workflow. Do not use it for a single named issue that should stop at a
-  reviewable pull request (that is work-issue), for reviewing someone else's pull
-  request, or for filing a new issue.
+  reviewable pull request (that is work-issue), for reviewing or landing someone
+  else's pull request, or for filing a new issue.
 argument-hint: "[optional: specific issue numbers to take as the first batch]"
 display_name: "Work an Issue Batch"
 short_description: "Ship batches of approved issues end-to-end until the queue is empty"
