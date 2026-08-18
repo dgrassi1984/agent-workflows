@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/dgrassi1984/agent-workflows/overlay.schema.json",
+  "title": "Agent workflow project overlay",
+  "description": "Bindings a project supplies to the repo-independent workflows. Steps never appear here; see references/project-overlay.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema"],
+  "properties": {
+    "schema": { "const": 1 },
+    "project": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "conventions": { "type": "string", "description": "repo-relative path to the invariants doc" },
+        "codemap": { "type": "string" },
+        "primary_checkout": { "enum": ["read-only", "writable"], "default": "read-only" }
+      }
+    },
+    "forge": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "enum": ["github", "gitlab"] },
+        "repo": { "type": "string", "pattern": "^[^/]+/.+$" },
+        "default_branch": { "type": "string", "default": "main" },
+        "branch_prefixes": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "issues": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "approved_label": { "type": "string" },
+        "block_labels": { "type": "array", "items": { "type": "string" } },
+        "claim_label": { "type": ["string", "null"] },
+        "severity_labels": { "type": "array", "items": { "type": "string" } },
+        "never_set": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "gate": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "worktree": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "root": { "type": "string" },
+        "provision": { "type": "string" }
+      }
+    },
+    "ship": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean", "default": false },
+        "authorization": { "enum": ["pre-authorized", "ask"], "default": "ask" },
+        "procedure": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "enabled": { "const": true } }, "required": ["enabled"] },
+          "then": {
+            "required": ["procedure"],
+            "description": "shipping with no release procedure is incoherent — an agent would have to invent the ritual"
+          }
+        }
+      ]
+    },
+    "review": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": { "failure_classes": { "type": "string" } }
+    },
+    "docs_move_with_code": { "type": "array", "items": { "type": "string" } }
+  }
+}

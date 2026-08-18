@@ -1,0 +1,44 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  guards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install pyyaml jsonschema
+
+      - name: Procedures name no project
+        run: python scripts/check_unbound.py
+
+      - name: The guard can still fail, for every rule
+        run: python scripts/check_unbound.py --self-test
+
+      - name: setup_repo still parses remotes and renders an overlay
+        run: python scripts/setup_repo.py --self-test
+
+      - name: The code map generator is deterministic
+        run: python scripts/gen_codemap.py --self-test
+
+      - name: The committed code map matches the code
+        run: python scripts/gen_codemap.py --check
+
+      - name: The overlay schema is a valid schema
+        run: |
+          python - <<'PY'
+          import json
+          from jsonschema import Draft202012Validator
+          Draft202012Validator.check_schema(json.load(open("overlay.schema.json")))
+          print("overlay.schema.json is a valid Draft 2020-12 schema")
+          PY
+
+      - name: Install is deterministic and leaves nothing stale
+        run: |
+          python scripts/gen_agent_wrappers.py
+          python scripts/gen_agent_wrappers.py --check
