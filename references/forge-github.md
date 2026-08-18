@@ -33,6 +33,9 @@ Verified against `gh` 2.64.
 | `pr.diff-names` | `gh pr diff <N> --name-only` |
 | `pr.for-current-branch` | `gh pr view` (no argument) |
 | `pr.fetch-head` | `git fetch origin pull/<N>/head` |
+| `pr.update-body` | `gh pr edit <N> --body-file <path>` |
+| `pr.checks` | `gh pr checks <N> --required` |
+| `pr.merge` | `gh pr merge <N> --match-head-commit <SHA>` plus the repository's customary `--merge` / `--squash` / `--rebase`, and `-d` only if this repo deletes source branches |
 
 ## What to know
 
@@ -46,3 +49,9 @@ Verified against `gh` 2.64.
   silently describe their branch.
 - **Creation can succeed with a label silently dropped.** Read it back with
   `issue.view` before reporting the issue as filed.
+- **`--match-head-commit` is the source-SHA guard.** Never omit it. Never pass
+  `--admin` to skip required checks. Confirm the merge by fetching the target
+  and comparing trees, not by the command's success message.
+- **`gh pr checks --required` is scoped to the pull request.** Pending required
+  checks exit 8; that is not a pass. Confirm the check run is on the SHA you
+  are about to merge.

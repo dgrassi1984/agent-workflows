@@ -66,6 +66,7 @@ writes — `#N` on one, `!N` on another. Copy the identifier, do not translate i
 | `work-issue` | `workflows/work-issue.md` |
 | `work-issue-batch` | `workflows/work-issue-batch.md` |
 | `review-pr` | `workflows/review-pr.md` |
+| `land-prs` | `workflows/land-prs.md` |
 | `clarify-design` | `workflows/clarify-design.md` |
 
 These are the filenames. They change when a procedure is added or renamed.
@@ -79,14 +80,19 @@ These are the filenames. They change when a procedure is added or renamed.
 | `developed-issue` | implementation is on a branch; state the evidence on the issue |
 | `opened-pr` | opened the pull request |
 | `review-started` | began reviewing the pull request |
-| `reviewed-pr` | review concluded (and merged, if asked) |
+| `reviewed-pr` | review concluded |
+| `merged-pr` | merged the pull request |
 | `clarified-design` | wrote the owner's decision onto the issue and dropped the blocking label, or closed the issue as already done |
 
 `work-issue-batch` reuses the `work-issue` actions. The `workflow` field is what
 distinguishes a batch from a single issue.
 
 Do not sign a clarification you only asked and have not written back. Do not
-sign a review you have not finished. Do not sign an issue you kept blocked.
+sign a review you have not finished. Do not sign a merge you have not
+confirmed on the target. Do not sign an issue you kept blocked.
+
+`land-prs` reuses the `review-pr` actions for the review half; `merged-pr` is
+what distinguishes a landing from a review.
 
 ## Where each signature is written
 
@@ -95,8 +101,9 @@ sign a review you have not finished. Do not sign an issue you kept blocked.
 | issue filed | the issue | `create-issue` | `filed-issue` |
 | starting work | the issue | `work-issue` or `work-issue-batch` | `started-work` |
 | pull request opened | the issue and the pull request | `work-issue` or `work-issue-batch` | `developed-issue` (issue), `opened-pr` (pull request) |
-| starting review | the pull request | `review-pr` | `review-started` |
-| review concluded | the pull request and the linked issue | `review-pr` | `reviewed-pr` |
+| starting review | the pull request | `review-pr` or `land-prs` | `review-started` |
+| review concluded | the pull request and the linked issue | `review-pr` or `land-prs` | `reviewed-pr` |
+| pull request merged | the pull request and the linked issue | `land-prs` | `merged-pr` |
 | design unblocked (or closed as done) | the issue | `clarify-design` | `clarified-design` |
 
 Each workflow names the moment. This table is the closed map those moments
