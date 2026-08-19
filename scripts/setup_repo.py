@@ -31,7 +31,9 @@ wrappers land in the project's harness directories and are added to
 
 The overlay goes to `docs/agent-overlay.yaml` when `docs/` exists, otherwise
 the repo root. It will not overwrite without `--force` (non-interactive) or an
-explicit yes (interactive).
+explicit yes (interactive). Re-running on a repo that already has an overlay
+reuses those bindings as the interview defaults (and as the values a
+``--force`` rewrite keeps), so Enter does not reset a finished setup.
 """
 
 from __future__ import annotations
@@ -49,6 +51,7 @@ HOME = Path.home()
 
 CONVENTIONS_CANDIDATES = ("AGENTS.md", "CONTRIBUTING.md")
 CODEMAP_CANDIDATES = ("docs/CODEMAP.md", "CODEMAP.md")
+OVERLAY_CANDIDATES = ("docs/agent-overlay.yaml", "agent-overlay.yaml")
 CLEAR = "-"
 
 # Standard names this operator already uses across repos. The interview
@@ -156,6 +159,7 @@ class Overlay:
     failure_classes: str | None = None
     docs_move_with_code: list[str] = field(default_factory=list)
     install_codemap: bool = False
+    from_overlay: bool = False
 
     def never_set(self) -> list[str]:
         """The labels/fields an agent must not touch, derived from what we set."""
@@ -358,6 +362,95 @@ def overlay_path(cwd: Path) -> Path:
     return Path("agent-overlay.yaml")
 
 
+def find_overlay(cwd: Path) -> Path | None:
+    """First existing overlay, same order as `references/project-overlay.md`."""
+    for rel in OVERLAY_CANDIDATES:
+        if (cwd / rel).is_file():
+            return Path(rel)
+    return None
+
+
+def _str_list(value: object) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(x) for x in value if x is not None and str(x) != ""]
+
+
+def read_overlay_yaml(path: Path) -> dict | None:
+    try:
+        import yaml
+    except ImportError:
+        _note("PyYAML is not installed; interview defaults will not reuse the existing overlay")
+        return None
+    try:
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except (OSError, yaml.YAMLError) as err:
+        _note(f"could not read {path}: {err}")
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def apply_existing_overlay(info: Overlay, data: dict) -> Overlay:
+    """Copy live bindings from a parsed overlay. Commented placeholders are absent."""
+    project = data.get("project")
+    if isinstance(project, dict):
+        name = project.get("name")
+        if isinstance(name, str) and name.strip():
+            info.name = name
+        if "conventions" in project:
+            info.conventions = project["conventions"] or None
+        if "codemap" in project:
+            info.codemap = project["codemap"] or None
+        checkout = project.get("primary_checkout")
+        if checkout in {"read-only", "writable"}:
+            info.primary_checkout = checkout
+    forge = data.get("forge")
+    if isinstance(forge, dict):
+        if forge.get("kind") in {"github", "gitlab"}:
+            info.forge_kind = forge["kind"]
+        repo = forge.get("repo")
+        if isinstance(repo, str) and repo.strip():
+            info.forge_repo = repo
+        branch = forge.get("default_branch")
+        if isinstance(branch, str) and branch.strip():
+            info.default_branch = branch
+        if "branch_prefixes" in forge:
+            info.branch_prefixes = _str_list(forge.get("branch_prefixes"))
+    issues = data.get("issues")
+    if isinstance(issues, dict):
+        if "approved_label" in issues:
+            info.approved_label = issues["approved_label"] or None
+        if "block_labels" in issues:
+            info.block_labels = _str_list(issues.get("block_labels"))
+        if "claim_label" in issues:
+            info.claim_label = issues["claim_label"] or None
+        if "severity_labels" in issues:
+            info.severity_labels = _str_list(issues.get("severity_labels"))
+    if "gate" in data:
+        info.gate = _str_list(data.get("gate"))
+    worktree = data.get("worktree")
+    if isinstance(worktree, dict):
+        if "root" in worktree:
+            info.worktree_root = worktree["root"] or None
+        if "provision" in worktree:
+            info.worktree_provision = worktree["provision"] or None
+    ship = data.get("ship")
+    if isinstance(ship, dict):
+        if "enabled" in ship:
+            info.ship_enabled = bool(ship["enabled"])
+        if ship.get("authorization") in {"ask", "pre-authorized"}:
+            info.ship_authorization = ship["authorization"]
+        if "procedure" in ship:
+            info.ship_procedure = ship["procedure"] or None
+    review = data.get("review")
+    if isinstance(review, dict) and "failure_classes" in review:
+        info.failure_classes = review["failure_classes"] or None
+    if "docs_move_with_code" in data:
+        info.docs_move_with_code = _str_list(data.get("docs_move_with_code"))
+    info.from_overlay = True
+    return info
+
+
 def inspect(cwd: Path) -> Overlay:
     url = git(cwd, "remote", "get-url", "origin") or ""
     kind, repo = parse_remote(url) if url else (None, None)
@@ -370,7 +463,7 @@ def inspect(cwd: Path) -> Overlay:
         forge_repo=repo,
         default_branch=default_branch,
         branch_prefixes=infer_branch_prefixes(cwd, default_branch),
-        target=overlay_path(cwd),
+        target=find_overlay(cwd) or overlay_path(cwd),
     )
 
 
@@ -422,14 +515,21 @@ def ask_yesno(prompt: str, default: bool) -> bool:
         _note("  y or n")
 
 
-def ask_lines(prompt: str) -> list[str]:
+def ask_lines(prompt: str, default: list[str] | None = None) -> list[str]:
+    """Collect lines. An empty first line keeps `default`; '-' clears."""
     _note(prompt)
-    _note("  one per line, empty line to finish")
+    if default:
+        _note("  current:")
+        for i, line in enumerate(default, 1):
+            _note(f"    {i}. {line}")
+        _note("  one per line to replace; empty first line keeps the current list; '-' clears")
+    else:
+        _note("  one per line, empty line to finish")
     lines: list[str] = []
     while True:
         raw = _read(f"  {len(lines) + 1}. ")
         if raw == "":
-            return lines
+            return list(default) if default is not None and not lines else lines
         if raw == CLEAR:
             return []
         lines.append(raw)
@@ -440,10 +540,40 @@ def _warn_missing(cwd: Path, rel: str | None, what: str) -> None:
         _note(f"  note: {rel} does not exist yet — left as a placeholder for {what}")
 
 
+def _ask_flag_label(prompt: str, current: str | None, standard: str, offer_standard: bool) -> str | None:
+    if current:
+        return current if ask_yesno(f"{prompt} ({current})?", True) else None
+    if ask_yesno(f"{prompt} ({standard})?", offer_standard):
+        return standard
+    return None
+
+
+def _ask_flag_labels(prompt: str, current: list[str], standard: str, offer_standard: bool) -> list[str]:
+    if current:
+        shown = ", ".join(current)
+        return list(current) if ask_yesno(f"{prompt} ({shown})?", True) else []
+    if ask_yesno(f"{prompt} ({standard})?", offer_standard):
+        return [standard]
+    return []
+
+
+def _severity_choice(labels: list[str]) -> str:
+    if labels == SEVERITY_P0:
+        return "p0"
+    if labels == SEVERITY_WORDS:
+        return "severity"
+    if not labels:
+        return "none"
+    return "custom"
+
+
 def interview(info: Overlay, cwd: Path) -> Overlay:
-    """Fill every key by asking. Enter keeps the inference; '-' clears it."""
+    """Fill every key by asking. Enter keeps the current value; '-' clears it."""
     _note(f"Bind {cwd} to the profile workflows.")
-    _note("Enter keeps the value in [brackets]. '-' clears an optional value.")
+    if info.from_overlay:
+        _note("Enter keeps the current overlay value in [brackets]. '-' clears an optional value.")
+    else:
+        _note("Enter keeps the value in [brackets]. '-' clears an optional value.")
     _note("Ctrl-C aborts. Nothing is written until the recap.")
     _note("")
 
@@ -491,37 +621,41 @@ def interview(info: Overlay, cwd: Path) -> Overlay:
     info.forge_repo = repo
     info.default_branch = ask("Default branch", info.default_branch or "main")
     if info.branch_prefixes:
-        _note("  branch prefixes (from origin): " + ", ".join(info.branch_prefixes))
+        _note("  branch prefixes: " + ", ".join(info.branch_prefixes))
     else:
-        _note("  no branch prefixes on origin — left as a placeholder")
+        _note("  no branch prefixes — left as a placeholder")
     _note("")
 
     _note("== Issues ==")
-    _note("A yes writes the standard name and creates the label on the forge")
+    _note("A yes keeps (or writes) the label and creates it on the forge")
     _note("if it is missing. Agents never set the approval or claim labels.")
-    if ask_yesno(f"Approval queue ({DEFAULT_APPROVED})?", True):
-        info.approved_label = DEFAULT_APPROVED
-    else:
-        info.approved_label = None
-    if ask_yesno(f"Claim label, so a session can mark an issue in progress ({DEFAULT_CLAIM})?", True):
-        info.claim_label = DEFAULT_CLAIM
-    else:
-        info.claim_label = None
-    if ask_yesno(f"Block label for issues that need a human decision ({DEFAULT_BLOCK})?", True):
-        info.block_labels = [DEFAULT_BLOCK]
-    else:
-        info.block_labels = []
-    scheme = ask_choice(
-        "Severity scheme",
-        ("none", "p0", "severity"),
-        "none",
+    offer_standard = not info.from_overlay
+    info.approved_label = _ask_flag_label(
+        "Approval queue", info.approved_label, DEFAULT_APPROVED, offer_standard
     )
-    if scheme == "p0":
-        info.severity_labels = list(SEVERITY_P0)
-    elif scheme == "severity":
-        info.severity_labels = list(SEVERITY_WORDS)
+    info.claim_label = _ask_flag_label(
+        "Claim label, so a session can mark an issue in progress",
+        info.claim_label,
+        DEFAULT_CLAIM,
+        offer_standard,
+    )
+    info.block_labels = _ask_flag_labels(
+        "Block label for issues that need a human decision",
+        info.block_labels,
+        DEFAULT_BLOCK,
+        offer_standard,
+    )
+    scheme = _severity_choice(info.severity_labels)
+    if scheme == "custom":
+        _note("  keeping existing severity labels: " + ", ".join(info.severity_labels))
     else:
-        info.severity_labels = []
+        scheme = ask_choice("Severity scheme", ("none", "p0", "severity"), scheme)
+        if scheme == "p0":
+            info.severity_labels = list(SEVERITY_P0)
+        elif scheme == "severity":
+            info.severity_labels = list(SEVERITY_WORDS)
+        else:
+            info.severity_labels = []
     wanted = info.issue_labels()
     if wanted:
         _note("  will create if missing: " + ", ".join(wanted))
@@ -530,7 +664,8 @@ def interview(info: Overlay, cwd: Path) -> Overlay:
     _note("== Gate ==")
     info.gate = ask_lines(
         "Commands that must all pass before a push. Empty = placeholder "
-        "(a workflow will then ask rather than invent a gate)."
+        "(a workflow will then ask rather than invent a gate).",
+        info.gate or None,
     )
     _note("")
 
@@ -580,10 +715,21 @@ def interview(info: Overlay, cwd: Path) -> Overlay:
         "Silent-failure list (defaults to the conventions doc)", fallback
     )
     _warn_missing(cwd, info.failure_classes, "review.failure_classes")
+    generator = codemap_command()
+    had_generator = generator in info.docs_move_with_code
+    extras = [cmd for cmd in info.docs_move_with_code if cmd != generator]
     extra_docs = ask_lines(
         "Other commands to run when a change moves a generated doc"
-        + (" (the code-map generator is already included)." if info.install_codemap else ".")
+        + (
+            " (the code-map generator is already included)."
+            if info.install_codemap or had_generator
+            else "."
+        ),
+        extras or None,
     )
+    info.docs_move_with_code = []
+    if info.install_codemap or had_generator:
+        info.docs_move_with_code.append(generator)
     for cmd in extra_docs:
         if cmd not in info.docs_move_with_code:
             info.docs_move_with_code.append(cmd)
@@ -999,6 +1145,77 @@ def self_test() -> int:
                 print(f"rendered overlay {where}: {err.message}", file=sys.stderr)
                 failed += 1
 
+    try:
+        import yaml as yaml_mod
+    except ImportError:
+        yaml_mod = None
+    if yaml_mod is not None:
+        loaded = apply_existing_overlay(
+            Overlay(name="blank", target=Path("docs/agent-overlay.yaml")),
+            yaml_mod.safe_load(rendered),
+        )
+        for attr, want in (
+            ("name", "example"),
+            ("conventions", "CONTRIBUTING.md"),
+            ("codemap", "docs/CODEMAP.md"),
+            ("primary_checkout", "read-only"),
+            ("forge_kind", "github"),
+            ("forge_repo", "owner/name"),
+            ("default_branch", "main"),
+            ("approved_label", "approved"),
+            ("claim_label", "in-progress"),
+            ("ship_enabled", True),
+            ("ship_procedure", "docs/release.md"),
+            ("failure_classes", "CONTRIBUTING.md"),
+            ("from_overlay", True),
+        ):
+            got = getattr(loaded, attr)
+            if got != want:
+                print(f"apply_existing_overlay {attr}={got!r}, expected {want!r}", file=sys.stderr)
+                failed += 1
+        if loaded.gate != ["npm test"] or loaded.block_labels != ["blocked"]:
+            print(f"apply_existing_overlay lists drifted: gate={loaded.gate!r}", file=sys.stderr)
+            failed += 1
+        placeholders = apply_existing_overlay(
+            Overlay(name="blank", target=Path("agent-overlay.yaml")),
+            yaml_mod.safe_load(bare),
+        )
+        if placeholders.approved_label or placeholders.gate or placeholders.ship_enabled:
+            print(
+                "placeholder overlay leaked bindings into apply_existing_overlay: "
+                f"approved={placeholders.approved_label!r} gate={placeholders.gate!r}",
+                file=sys.stderr,
+            )
+            failed += 1
+        if placeholders.name != "bare" or not placeholders.from_overlay:
+            print(f"placeholder overlay name/from_overlay drifted: {placeholders.name!r}", file=sys.stderr)
+            failed += 1
+
+        import shutil
+        import tempfile
+
+        tmp = Path(tempfile.mkdtemp(prefix="setup-overlay-"))
+        try:
+            (tmp / "docs").mkdir()
+            (tmp / "docs" / "agent-overlay.yaml").write_text(
+                "schema: 1\nproject:\n  name: from-file\n",
+                encoding="utf-8",
+            )
+            found = find_overlay(tmp)
+            if found != Path("docs/agent-overlay.yaml"):
+                print(f"find_overlay = {found!r}", file=sys.stderr)
+                failed += 1
+            else:
+                reused = apply_existing_overlay(
+                    Overlay(name="tmp", target=found),
+                    read_overlay_yaml(tmp / found) or {},
+                )
+                if reused.name != "from-file" or not reused.from_overlay:
+                    print(f"reused overlay name={reused.name!r}", file=sys.stderr)
+                    failed += 1
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
     if failed:
         return 1
     extra = f", {len(samples)} overlays against schema" if validator is not None else ""
@@ -1059,6 +1276,12 @@ def main() -> int:
 
     interactive = (not args.non_interactive) and sys.stdin.isatty()
     info = inspect(cwd)
+    existing = cwd / info.target
+    if existing.is_file():
+        data = read_overlay_yaml(existing)
+        if data is not None:
+            apply_existing_overlay(info, data)
+            _note(f"reusing bindings from {existing}")
     if args.generate_codemap and not interactive:
         info.install_codemap = True
         info.codemap = info.codemap or "docs/CODEMAP.md"

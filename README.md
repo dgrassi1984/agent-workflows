@@ -88,9 +88,12 @@ into the project's harness directories (`.claude/skills`, `.codex/skills`,
 The overlay is the project's; the wrappers are pointers and must not be
 committed. Re-run `make install-repo DIR=/path/to/project` to refresh them.
 Every overlay key ends up in the file, either as a binding or as
-a commented placeholder. `--non-interactive` skips the questions.
-`--print` dry-runs; `--force` overwrites. The key set, and what a missing key
-means, lives in `references/project-overlay.md`.
+a commented placeholder. Re-running on an already-bound repo asks before
+replacing the file, then defaults each interview question to the current
+overlay values. `--non-interactive` skips the questions.
+`--print` dry-runs; `--force` overwrites, still keeping those current
+values. The key set, and what a missing key means, lives in
+`references/project-overlay.md`.
 
 A repo with no overlay still works: every workflow falls back to conservative
 defaults (read-only primary checkout, no queue, no claiming, stop at an open

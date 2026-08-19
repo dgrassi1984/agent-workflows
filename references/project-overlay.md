@@ -53,10 +53,17 @@ decision becomes a binding; a skip becomes a commented placeholder with the
 conservative default, so the next edit is filling a blank rather than
 reconstructing the contract.
 
+Re-running on a repo that already has an overlay still asks before replacing
+the file. The interview then defaults to the current bindings — Enter keeps
+what is already set, including the gate, labels, and ship settings.
+`--non-interactive --force` reuses those same live bindings rather than
+wiping them back to inferences.
+
 `--non-interactive` (or a non-TTY) writes only the inferences and the
-placeholders. It will not invent a gate, a label scheme or a release ritual.
-It will not overwrite an existing overlay without `--force` (or an explicit
-yes, when interviewing). `--print` writes the file to stdout instead of disk.
+placeholders for keys the overlay has not decided. It will not invent a
+gate, a label scheme or a release ritual. It will not overwrite an existing
+overlay without `--force` (or an explicit yes, when interviewing).
+`--print` writes the file to stdout instead of disk.
 
 Hand-writing the same file is fine. The command is a starter, not a requirement.
 
