@@ -5,7 +5,7 @@ PY := uv run --quiet --with pyyaml --with jsonschema python
 help:  ## show the targets
 	@grep -E '^[a-z-]+:.*##' $(MAKEFILE_LIST) | sed 's/:.*##/\t/' | expand -t22
 
-install:  ## install every workflow and reference skill into each agent harness
+install:  ## profile harnesses, then offer to refresh every bound project
 	@$(PY) scripts/gen_agent_wrappers.py
 
 install-repo:  ## install wrappers into DIR and gitignore them
