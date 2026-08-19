@@ -46,17 +46,29 @@ map writes `docs/CODEMAP.md` from tracked sources (the generator lives in
 this repo) and sets `docs_move_with_code` so later sessions regenerate it.
 It also writes generated skill wrappers into the project's harness
 directories and adds those paths to `.gitignore` — they are pointers at
-this repo, not project-owned content. Refresh them with
-`python3 ~/Development/agent-workflows/scripts/gen_agent_wrappers.py --repo .`.
+this repo, not project-owned content. After this profile gains a workflow,
+refresh a bound checkout with
+`python3 ~/Development/agent-workflows/scripts/setup_repo.py --update`
+(or `make update-repo DIR=.` from this repo). That rewrites the wrappers
+and leaves the overlay alone. An edit to an existing procedure needs no
+refresh: the wrappers already point here.
 Every key in this document appears in the file. A
 decision becomes a binding; a skip becomes a commented placeholder with the
 conservative default, so the next edit is filling a blank rather than
 reconstructing the contract.
 
+Re-running on a repo that already has an overlay still asks before replacing
+the file. No — leave the overlay, refresh the wrappers. Yes — interview,
+defaulting to the current bindings, so Enter keeps the gate, labels, and
+ship settings. `--non-interactive --force` reuses those same live bindings
+rather than wiping them back to inferences. `--update` is the non-interactive
+wrapper-only path.
+
 `--non-interactive` (or a non-TTY) writes only the inferences and the
-placeholders. It will not invent a gate, a label scheme or a release ritual.
-It will not overwrite an existing overlay without `--force` (or an explicit
-yes, when interviewing). `--print` writes the file to stdout instead of disk.
+placeholders for keys the overlay has not decided. It will not invent a
+gate, a label scheme or a release ritual. It will not overwrite an existing
+overlay without `--force` (or an explicit yes, when interviewing).
+`--print` writes the file to stdout instead of disk.
 
 Hand-writing the same file is fine. The command is a starter, not a requirement.
 

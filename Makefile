@@ -1,4 +1,4 @@
-.PHONY: help install install-repo check unbound guard-test wrappers-check wrappers-test overlay setup-repo setup-repo-test map map-check map-test
+.PHONY: help install install-repo update-repo check unbound guard-test wrappers-check wrappers-test overlay setup-repo setup-repo-test map map-check map-test
 
 PY := uv run --quiet --with pyyaml --with jsonschema python
 
@@ -11,6 +11,10 @@ install:  ## install every workflow and reference skill into each agent harness
 install-repo:  ## install wrappers into DIR and gitignore them
 	@test -n "$(DIR)" || { echo "usage: make install-repo DIR=/path/to/repo" >&2; exit 2; }
 	@$(PY) scripts/gen_agent_wrappers.py --repo "$(DIR)"
+
+update-repo:  ## refresh wrappers in an already-bound DIR; leave the overlay alone
+	@test -n "$(DIR)" || { echo "usage: make update-repo DIR=/path/to/repo" >&2; exit 2; }
+	@$(PY) scripts/setup_repo.py --update "$(DIR)"
 
 check: unbound guard-test wrappers-check wrappers-test setup-repo-test map-test map-check  ## everything CI runs
 

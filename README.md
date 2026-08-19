@@ -41,6 +41,7 @@ overlay.schema.json
 ```bash
 make install     # write every workflow and reference skill into each harness
 make install-repo DIR=../myproject  # same wrappers, inside a checkout, gitignored
+make update-repo DIR=../myproject   # already bound: refresh wrappers, leave overlay
 make check       # what CI runs: the guards + harness freshness
 make overlay     # validate every project overlay under ~/Development
 make setup-repo DIR=../myproject   # bind a checkout: overlay + gitignored wrappers
@@ -86,11 +87,15 @@ so later sessions regenerate it. It also writes generated skill wrappers
 into the project's harness directories (`.claude/skills`, `.codex/skills`,
 `.opencode/skills`, `.agents/skills`) and adds those paths to `.gitignore`.
 The overlay is the project's; the wrappers are pointers and must not be
-committed. Re-run `make install-repo DIR=/path/to/project` to refresh them.
-Every overlay key ends up in the file, either as a binding or as
-a commented placeholder. `--non-interactive` skips the questions.
-`--print` dry-runs; `--force` overwrites. The key set, and what a missing key
-means, lives in `references/project-overlay.md`.
+committed. After this repo gains a workflow, `make install` refreshes the
+profile harnesses and `make update-repo DIR=/path/to/project` refreshes that
+checkout — overlay untouched. An edit to an existing procedure needs neither:
+the wrappers already point here. Re-run setup and agree to replace the
+overlay only when you want new placeholder keys in the file; Enter keeps
+the current bindings. Declining the replace still refreshes the wrappers.
+`--non-interactive` skips the questions. `--print` dry-runs; `--force`
+overwrites, still keeping those current values. The key set, and what a
+missing key means, lives in `references/project-overlay.md`.
 
 A repo with no overlay still works: every workflow falls back to conservative
 defaults (read-only primary checkout, no queue, no claiming, stop at an open
