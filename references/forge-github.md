@@ -13,8 +13,8 @@ Verified against `gh` 2.64.
 
 | Operation | Command |
 |---|---|
-| `issue.view` | `gh issue view <N>` |
-| `issue.view-comments` | `gh issue view <N> --comments` |
+| `issue.view` | `gh issue view <N> --json number,title,body,author,state,labels,milestone,assignees,url` |
+| `issue.view-comments` | `gh issue view <N> --json comments` |
 | `issue.queue` | `gh issue list --state open --label <approved_label>` |
 | `issue.search` | `gh issue list --search "<terms>"` |
 | `issue.search-closed` | `gh issue list --state closed --search "<terms>"` |
@@ -29,9 +29,9 @@ Verified against `gh` 2.64.
 | `pr.search` | `gh pr list --state open --search "<terms>"` |
 | `pr.create` | `gh pr create --base <default_branch> --head <branch> --title "<t>" --body-file <path>` |
 | `pr.comment` | `gh pr comment <N> --body-file <path>` |
-| `pr.view` | `gh pr view <N>` |
+| `pr.view` | `gh pr view <N> --json number,title,body,author,state,labels,url,headRefName,baseRefName,isDraft` |
 | `pr.diff-names` | `gh pr diff <N> --name-only` |
-| `pr.for-current-branch` | `gh pr view` (no argument) |
+| `pr.for-current-branch` | `gh pr view --json number,title,body,author,state,labels,url,headRefName,baseRefName,isDraft` |
 | `pr.fetch-head` | `git fetch origin pull/<N>/head` |
 | `pr.update-body` | `gh pr edit <N> --body-file <path>` |
 | `pr.checks` | `gh pr checks <N> --required` |
@@ -39,6 +39,12 @@ Verified against `gh` 2.64.
 
 ## What to know
 
+- **Default `gh issue view` / `gh pr view` (no `--json`) query Projects (classic).**
+  On the verified `gh` 2.64, GitHub answers that field with
+  `GraphQL: Projects (classic) is being deprecated... (repository.issue.projectCards)`
+  and **nothing else** — exit 0, no title, no body. Retrying the same command
+  produces the same line. Always pass `--json` with explicit fields, and never
+  ask for `projectCards`.
 - **The closing keyword is `Closes #<N>`**, in the pull request body. One line per
   issue. Merging the PR closes them.
 - **`--body-file` exists everywhere it matters.** Write the body to a file rather
