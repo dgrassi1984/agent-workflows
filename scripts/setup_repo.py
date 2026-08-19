@@ -77,8 +77,8 @@ NOT_A_PREFIX = frozenset({"HEAD", "main", "master", "develop", "staging", "trunk
 # (description, hex without #) for labels we create. Unknown names get a
 # generic description and a reserved color rather than a random one.
 LABEL_META: dict[str, tuple[str, str]] = {
-    DEFAULT_APPROVED: ("Cleared to build. Agents never set this.", "0E8A16"),
-    "approved": ("Cleared to build. Agents never set this.", "0E8A16"),
+    DEFAULT_APPROVED: ("Cleared to build. create-issue sets this when filing.", "0E8A16"),
+    "approved": ("Cleared to build. create-issue sets this when filing.", "0E8A16"),
     DEFAULT_BLOCK: ("Blocked on a human product decision.", "D93F0B"),
     "blocked": ("Blocked on a human product decision.", "D93F0B"),
     DEFAULT_CLAIM: ("A session is working this issue.", "FBCA04"),
@@ -167,10 +167,12 @@ class Overlay:
     from_overlay: bool = False
 
     def never_set(self) -> list[str]:
-        """The labels/fields an agent must not touch, derived from what we set."""
+        """The labels/fields an agent must not touch, derived from what we set.
+
+        The approval label is not in this list: create-issue sets it when
+        filing. Other workflows still never set it.
+        """
         out = []
-        if self.approved_label:
-            out.append(self.approved_label)
         if self.claim_label:
             out.append(self.claim_label)
         out += ["assignee", "milestone"]
@@ -648,7 +650,8 @@ def interview(info: Overlay, cwd: Path) -> Overlay:
 
     _note("== Issues ==")
     _note("A yes keeps (or writes) the label and creates it on the forge")
-    _note("if it is missing. Agents never set the approval or claim labels.")
+    _note("if it is missing. create-issue sets the approval label when filing;")
+    _note("agents never set the claim label.")
     offer_standard = not info.from_overlay
     info.approved_label = _ask_flag_label(
         "Approval queue", info.approved_label, DEFAULT_APPROVED, offer_standard
@@ -940,7 +943,7 @@ def render(info: Overlay) -> str:
         if info.approved_label:
             lines.append(f"  approved_label: {yaml_str(info.approved_label)}")
         else:
-            lines.append("  # approved_label: approved   # agents never set this")
+            lines.append("  # approved_label: approved   # create-issue sets this when filing")
         if info.block_labels:
             lines.append("  block_labels: [" + ", ".join(yaml_str(x) for x in info.block_labels) + "]")
         else:
@@ -957,11 +960,11 @@ def render(info: Overlay) -> str:
     else:
         lines += _comment_block([
             "issues:",
-            "  approved_label: approved     # cleared to build; agents never set it",
+            "  approved_label: approved     # cleared to build; create-issue sets it when filing",
             "  block_labels: [blocked]      # stop, this needs a human decision",
             "  claim_label: in-progress     # unset: no claiming protocol",
             "  severity_labels: [P0, P1, P2]",
-            "  never_set: [approved, in-progress, assignee, milestone]",
+            "  never_set: [in-progress, assignee, milestone]",
         ])
     lines.append("")
 
@@ -1106,6 +1109,12 @@ def self_test() -> int:
     if full.issue_labels() != ["approved", "blocked", "in-progress", "P0", "P1"]:
         print(f"issue_labels = {full.issue_labels()!r}", file=sys.stderr)
         failed += 1
+    if full.never_set() != ["in-progress", "assignee", "milestone"]:
+        print(
+            f"never_set = {full.never_set()!r}, expected claim/assignee/milestone only",
+            file=sys.stderr,
+        )
+        failed += 1
     rendered = render(full)
     for needle in (
         "schema: 1",
@@ -1117,6 +1126,7 @@ def self_test() -> int:
         "default_branch: main",
         "primary_checkout: read-only",
         "approved_label: approved",
+        "never_set: [in-progress, assignee, milestone]",
         "gate:",
         "  - npm test",
         "enabled: true",

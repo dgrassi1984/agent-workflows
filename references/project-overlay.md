@@ -120,14 +120,18 @@ time can set `writable` and skip the worktree.
 
 | Key | Means | Default |
 |---|---|---|
-| `approved_label` | marks an issue cleared to build; **agents never set it** | none — work only issues the user names |
+| `approved_label` | marks an issue cleared to build; `create-issue` sets it when filing | none — work only issues the user names |
 | `block_labels` | stop, do not build, this needs a human decision | `[]` |
 | `claim_label` | the "a session is on this" claim | none — no claiming protocol; check branches and open PRs instead |
 | `severity_labels` | the severity scheme, exactly one per issue | none — do not invent one |
-| `never_set` | labels and fields an agent must not set | `[approved_label, claim_label, assignee, milestone]` |
+| `never_set` | labels and fields an agent must not set | `[claim_label, assignee, milestone]` |
 
 A label named here that does not exist on the forge is an error worth reporting,
-not one to fix by creating the label.
+not one to fix by creating the label. `create-issue` is the exception for
+`approved_label`: the human's request to file *is* the approval. Other
+workflows still never set it. A project overlay that still lists the approval
+label under `never_set` is following the older default; `create-issue` sets
+the label anyway.
 
 ### `gate`
 
@@ -214,7 +218,7 @@ issues:
   block_labels: [design-needed]
   claim_label: wip
   severity_labels: [severity:critical, severity:high, severity:medium, severity:low]
-  never_set: [human-approved, wip, assignee, milestone]
+  never_set: [wip, assignee, milestone]
 
 gate:
   - uv run ruff check .

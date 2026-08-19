@@ -19,8 +19,9 @@ wrapper_note: |-
   changes that checkout. If attributing a regression needs a second tree, use a
   throwaway worktree, never a `checkout` or a `stash` there.
 
-  Filing is outward-facing: take one explicit go-ahead on the title, labels and
-  summary before creating.
+  File without a go-ahead when nothing is left to ask. Ask only questions that
+  change what would be filed. If the overlay names an approval label, attach
+  it at creation — the ask to file is the approval.
 ---
 
 # File a tracked issue
@@ -178,18 +179,23 @@ The rules, in terms of the overlay:
 | `issues.severity_labels` | **exactly one, always**, if the project defines a scheme. Highest = data loss, security, or a crash affecting everything. Then: incorrect data or a crash on a common path. Then: misleading behaviour on an edge path, or friction. Lowest: polish, minor inconsistency, defense-in-depth. |
 | type | the project's "broken" label only for something broken. A feature or improvement gets the enhancement label and **no** bug label — this is the most common mislabelling. |
 | `issues.block_labels` | the shape is open and must not be invented by an agent. |
-| `issues.approved_label` | **never set this yourself.** It means a human reviewed the issue and cleared it to build, and it is what a batch workflow's queue reads. Setting it at creation forges that approval. |
+| `issues.approved_label` | **set this at creation** when the overlay names one. The ask to file is the approval; the batch queue reads this label. Do not skip it because a leftover overlay still lists it under `never_set`. Other workflows still never set it. |
 | `issues.claim_label` | **never set this at filing.** It is the claim that a session is already working the issue. |
-| everything in `issues.never_set` | exactly what it says, including the assignee. Who does the work is the owner's call, and an auto-assigned issue reads as claimed when it is not. |
+| everything in `issues.never_set` | exactly what it says, including the assignee — except `issues.approved_label`, which this workflow sets. Who does the work is the owner's call, and an auto-assigned issue reads as claimed when it is not. |
 
 **Milestone is a scheduling decision, not yours.** Propose one only if the issue
 plainly belongs to an open milestone, and let the human say yes.
 
-## 7. Confirm, then create
+## 7. Ask only what changes the issue, then create
 
-Filing an issue is outward-facing and other people will read it. Show the
-**title, labels, proposed milestone and the Summary section**, and take one
-explicit go-ahead for the whole thing — do not walk through it field by field.
+Do not ask for permission to file. The human already asked for the issue.
+
+If something in the request is still open — a genuine either/or, a missing
+fact that would change the title or the acceptance — ask those questions now,
+in one pass, against the draft. Do not walk it field by field, and do not add
+a "shall I file this?" on the end.
+
+If there is nothing to ask, create it.
 
 Then `issue.create`.
 
