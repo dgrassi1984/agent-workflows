@@ -478,10 +478,19 @@ def _read(base: Path, path: Path) -> str | None:
     return full.read_text(encoding="utf-8") if full.is_file() else None
 
 
+def _home_path(path: Path) -> str:
+    """A location a human can tell from this profile checkout."""
+    resolved = path.expanduser().resolve()
+    if resolved == HOME.resolve():
+        return "~"
+    try:
+        return "~/" + str(resolved.relative_to(HOME))
+    except ValueError:
+        return str(resolved)
+
+
 def _display(base: Path, path: Path) -> str:
-    if base == HOME:
-        return f"~/{path}"
-    return str(path)
+    return _home_path(base / path)
 
 
 def _prune_empty_dirs(base: Path, harnesses: tuple[Harness, ...]) -> None:
@@ -534,7 +543,10 @@ def apply_install(
     write_manifests(base, harnesses, want)
     _prune_empty_dirs(base, harnesses)
 
-    print(f"{len(stale)} written, {len(orphans)} removed, {len(want)} total")
+    print(
+        f"{len(stale)} written, {len(orphans)} removed, {len(want)} total "
+        f"under {_home_path(base)}"
+    )
     return 0
 
 
@@ -628,6 +640,8 @@ def install_into_repo(repo: Path, *, check: bool = False) -> int:
     want = expected(PROJECT_HARNESSES)
     entries = gitignore_paths(want, PROJECT_HARNESSES)
     hint = f"Fix: run `python3 {repo_label()}/scripts/gen_agent_wrappers.py --repo {repo}`."
+    if not check:
+        print(f"installing wrappers into {_home_path(repo)} (bound project)")
     rc = apply_install(repo, PROJECT_HARNESSES, check=check, fix_hint=hint)
     if check:
         if gitignore_stale(repo, entries):
@@ -641,7 +655,7 @@ def install_into_repo(repo: Path, *, check: bool = False) -> int:
 
     action = ensure_gitignore(repo, entries)
     if action != "unchanged":
-        print(f"{action} {repo / '.gitignore'}")
+        print(f"{action} {_home_path(repo / '.gitignore')} (bound project)")
 
     tracked = tracked_installed_paths(repo, want, PROJECT_HARNESSES)
     if tracked:
@@ -788,6 +802,14 @@ def self_test() -> int:
         import shutil
 
         shutil.rmtree(bound_tmp, ignore_errors=True)
+
+    shown = _display(HOME / "Development" / "example-app", Path(".claude/skills/work-issue/SKILL.md"))
+    if shown != "~/Development/example-app/.claude/skills/work-issue/SKILL.md":
+        print(f"project wrapper path must name the bound checkout, got {shown!r}", file=sys.stderr)
+        failed += 1
+    if _display(HOME, Path(".claude/skills/work-issue/SKILL.md")) != "~/.claude/skills/work-issue/SKILL.md":
+        print("profile wrapper path drifted", file=sys.stderr)
+        failed += 1
 
     if failed:
         return 1
