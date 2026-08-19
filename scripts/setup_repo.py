@@ -368,7 +368,10 @@ def refresh_repo(cwd: Path) -> int:
             file=sys.stderr,
         )
         return 2
-    _note("refreshing generated skill wrappers; overlay left unchanged")
+    _note(
+        f"refreshing generated skill wrappers in {cwd} (bound project); "
+        "overlay left unchanged"
+    )
     return install_wrappers(cwd)
 
 
@@ -1396,7 +1399,7 @@ def main() -> int:
         _note(f"generating {info.codemap} from tracked sources")
         if generate_codemap(cwd) != 0:
             return 1
-    _note("installing generated skill wrappers and gitignoring them")
+    _note(f"installing generated skill wrappers into {cwd} (bound project) and gitignoring them")
     if install_wrappers(cwd) != 0:
         return 1
     return 0

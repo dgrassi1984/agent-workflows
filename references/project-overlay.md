@@ -46,9 +46,10 @@ map writes `docs/CODEMAP.md` from tracked sources (the generator lives in
 this repo) and sets `docs_move_with_code` so later sessions regenerate it.
 It also writes generated skill wrappers into the project's harness
 directories and adds those paths to `.gitignore` — they are pointers at
-this repo, not project-owned content. After this profile gains a workflow,
-refresh a bound checkout with
-`python3 ~/Development/agent-workflows/scripts/setup_repo.py --update`
+this repo, not project-owned content. Binding a checkout is remembered on
+this machine. After this profile gains a workflow, `make install` updates
+the profile harnesses and offers to refresh every remembered project.
+One checkout: `python3 ~/Development/agent-workflows/scripts/setup_repo.py --update`
 (or `make update-repo DIR=.` from this repo). That rewrites the wrappers
 and leaves the overlay alone. An edit to an existing procedure needs no
 refresh: the wrappers already point here.

@@ -39,7 +39,7 @@ overlay.schema.json
 ## Using it
 
 ```bash
-make install     # write every workflow and reference skill into each harness
+make install     # profile harnesses, then offer to refresh every bound project
 make install-repo DIR=../myproject  # same wrappers, inside a checkout, gitignored
 make update-repo DIR=../myproject   # already bound: refresh wrappers, leave overlay
 make check       # what CI runs: the guards + harness freshness
@@ -87,9 +87,12 @@ so later sessions regenerate it. It also writes generated skill wrappers
 into the project's harness directories (`.claude/skills`, `.codex/skills`,
 `.opencode/skills`, `.agents/skills`) and adds those paths to `.gitignore`.
 The overlay is the project's; the wrappers are pointers and must not be
-committed. After this repo gains a workflow, `make install` refreshes the
-profile harnesses and `make update-repo DIR=/path/to/project` refreshes that
-checkout — overlay untouched. An edit to an existing procedure needs neither:
+committed. Each `--repo` / `setup-repo` / `update-repo` is remembered in
+`~/.agent-workflows/bound-projects.json`. `make install` updates the
+profile harnesses, then — on a TTY — offers to refresh every remembered
+checkout. First run with an empty list will offer to remember checkouts
+under `~/Development` that already have wrappers. `make update-repo
+DIR=/path/to/project` still refreshes one project by hand. An edit to an existing procedure needs neither:
 the wrappers already point here. Re-run setup and agree to replace the
 overlay only when you want new placeholder keys in the file; Enter keeps
 the current bindings. Declining the replace still refreshes the wrappers.

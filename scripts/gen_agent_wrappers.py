@@ -31,6 +31,10 @@ generated pointers, not project-owned content: install also maintains a
 managed block in the project's `.gitignore` covering exactly the paths it
 added.
 
+A successful ``--repo`` install is remembered in a machine-local list
+(``~/.agent-workflows/bound-projects.json``). ``make install`` then offers to
+refresh every remembered checkout after it updates the profile harnesses.
+
 Usage::
 
     python scripts/gen_agent_wrappers.py            # install into harness homes
@@ -43,6 +47,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -113,6 +118,154 @@ PROJECT_HARNESSES = (
 )
 
 REQUIRED = ("name", "description")
+OVERLAY_CANDIDATES = ("docs/agent-overlay.yaml", "agent-overlay.yaml")
+BOUND_ENV = "AGENT_WORKFLOWS_BOUND"
+
+
+def bound_registry_path() -> Path:
+    """Machine-local list of checkouts this profile has bound. Not committed."""
+    override = os.environ.get(BOUND_ENV)
+    if override:
+        return Path(override)
+    return HOME / ".agent-workflows" / "bound-projects.json"
+
+
+def load_bound_projects() -> list[Path]:
+    path = bound_registry_path()
+    if not path.is_file():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        print(f"warning: unreadable bound-project list at {path}", file=sys.stderr)
+        return []
+    raw = data.get("projects") if isinstance(data, dict) else data
+    if not isinstance(raw, list):
+        return []
+    found: list[Path] = []
+    seen: set[Path] = set()
+    for item in raw:
+        if not isinstance(item, str) or not item.strip():
+            continue
+        resolved = Path(item).expanduser().resolve()
+        if resolved in seen:
+            continue
+        seen.add(resolved)
+        found.append(resolved)
+    return found
+
+
+def save_bound_projects(paths: list[Path]) -> None:
+    path = bound_registry_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    unique = sorted({p.expanduser().resolve() for p in paths}, key=lambda p: str(p).lower())
+    path.write_text(
+        json.dumps({"projects": [str(p) for p in unique]}, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def remember_bound_project(repo: Path) -> None:
+    paths = load_bound_projects()
+    resolved = repo.expanduser().resolve()
+    if resolved not in paths:
+        paths.append(resolved)
+        save_bound_projects(paths)
+
+
+def prune_bound_projects() -> list[Path]:
+    """Drop checkouts that no longer exist. Return what remains."""
+    kept: list[Path] = []
+    changed = False
+    for path in load_bound_projects():
+        if path.is_dir() and (path / ".git").exists():
+            kept.append(path)
+            continue
+        print(f"forgetting {path} (gone)", file=sys.stderr)
+        changed = True
+    if changed:
+        save_bound_projects(kept)
+    return kept
+
+
+def _has_overlay(repo: Path) -> bool:
+    return any((repo / rel).is_file() for rel in OVERLAY_CANDIDATES)
+
+
+def looks_bound(repo: Path) -> bool:
+    """True when the checkout has an overlay and wrappers we installed."""
+    if not _has_overlay(repo):
+        return False
+    return any((repo / h.root / MANIFEST).is_file() for h in PROJECT_HARNESSES)
+
+
+def discover_bound_projects(root: Path) -> list[Path]:
+    """Checkouts under `root` that already look bound to this profile."""
+    if not root.is_dir():
+        return []
+    found: list[Path] = []
+    for repo in sorted(p for p in root.iterdir() if (p / ".git").exists()):
+        if looks_bound(repo):
+            found.append(repo.resolve())
+    return found
+
+
+def _ask_yesno(prompt: str, default: bool) -> bool:
+    hint = "Y/n" if default else "y/N"
+    while True:
+        try:
+            raw = input(f"{prompt} [{hint}]: ").strip().lower()
+        except EOFError:
+            return default
+        if raw == "":
+            return default
+        if raw in {"y", "yes"}:
+            return True
+        if raw in {"n", "no"}:
+            return False
+        print("  y or n", file=sys.stderr)
+
+
+def refresh_bound_projects() -> int:
+    """Offer to update every remembered checkout. No-op without a TTY."""
+    paths = prune_bound_projects()
+    discover_root = HOME / "Development"
+    if not paths and discover_root.is_dir():
+        found = discover_bound_projects(discover_root)
+        if found:
+            print("No bound-project list yet. Found checkouts that already have wrappers:")
+            for path in found:
+                print(f"  {path.name}  {path}")
+            if sys.stdin.isatty() and _ask_yesno(
+                f"Remember and update {len(found)} project(s)?", True
+            ):
+                save_bound_projects(found)
+                paths = found
+            else:
+                return 0
+    if not paths:
+        return 0
+    print("Bound projects:")
+    for path in paths:
+        print(f"  {path.name}  {path}")
+    if not sys.stdin.isatty():
+        print(
+            f"skipping {len(paths)} bound project(s) (not a TTY); "
+            "rerun `make install` from a terminal",
+            file=sys.stderr,
+        )
+        return 0
+    if not _ask_yesno(f"Update wrappers in all {len(paths)}?", True):
+        return 0
+    failed = 0
+    for path in paths:
+        if not _has_overlay(path):
+            print(f"skipping {path} (no overlay)", file=sys.stderr)
+            continue
+        print(f"updating {path}")
+        if install_into_repo(path) != 0:
+            failed += 1
+    return 1 if failed else 0
 
 
 def canonical_repo() -> Path:
@@ -325,10 +478,19 @@ def _read(base: Path, path: Path) -> str | None:
     return full.read_text(encoding="utf-8") if full.is_file() else None
 
 
+def _home_path(path: Path) -> str:
+    """A location a human can tell from this profile checkout."""
+    resolved = path.expanduser().resolve()
+    if resolved == HOME.resolve():
+        return "~"
+    try:
+        return "~/" + str(resolved.relative_to(HOME))
+    except ValueError:
+        return str(resolved)
+
+
 def _display(base: Path, path: Path) -> str:
-    if base == HOME:
-        return f"~/{path}"
-    return str(path)
+    return _home_path(base / path)
 
 
 def _prune_empty_dirs(base: Path, harnesses: tuple[Harness, ...]) -> None:
@@ -381,7 +543,10 @@ def apply_install(
     write_manifests(base, harnesses, want)
     _prune_empty_dirs(base, harnesses)
 
-    print(f"{len(stale)} written, {len(orphans)} removed, {len(want)} total")
+    print(
+        f"{len(stale)} written, {len(orphans)} removed, {len(want)} total "
+        f"under {_home_path(base)}"
+    )
     return 0
 
 
@@ -475,6 +640,8 @@ def install_into_repo(repo: Path, *, check: bool = False) -> int:
     want = expected(PROJECT_HARNESSES)
     entries = gitignore_paths(want, PROJECT_HARNESSES)
     hint = f"Fix: run `python3 {repo_label()}/scripts/gen_agent_wrappers.py --repo {repo}`."
+    if not check:
+        print(f"installing wrappers into {_home_path(repo)} (bound project)")
     rc = apply_install(repo, PROJECT_HARNESSES, check=check, fix_hint=hint)
     if check:
         if gitignore_stale(repo, entries):
@@ -488,7 +655,7 @@ def install_into_repo(repo: Path, *, check: bool = False) -> int:
 
     action = ensure_gitignore(repo, entries)
     if action != "unchanged":
-        print(f"{action} {repo / '.gitignore'}")
+        print(f"{action} {_home_path(repo / '.gitignore')} (bound project)")
 
     tracked = tracked_installed_paths(repo, want, PROJECT_HARNESSES)
     if tracked:
@@ -594,6 +761,56 @@ def self_test() -> int:
             print("self-test: --check after install should be clean", file=sys.stderr)
             failed += 1
 
+    bound_tmp = Path(tempfile.mkdtemp(prefix="bound-registry-"))
+    previous = os.environ.get(BOUND_ENV)
+    os.environ[BOUND_ENV] = str(bound_tmp / "bound-projects.json")
+    try:
+        alive = bound_tmp / "alive"
+        alive.mkdir()
+        (alive / ".git").mkdir()
+        remember_bound_project(alive)
+        remember_bound_project(alive)
+        if load_bound_projects() != [alive.resolve()]:
+            print(f"remember/load drifted: {load_bound_projects()!r}", file=sys.stderr)
+            failed += 1
+        gone = bound_tmp / "gone"
+        gone.mkdir()
+        (gone / ".git").mkdir()
+        remember_bound_project(gone)
+        for child in gone.iterdir():
+            child.rmdir()
+        gone.rmdir()
+        kept = prune_bound_projects()
+        if kept != [alive.resolve()]:
+            print(f"prune_bound_projects = {kept!r}", file=sys.stderr)
+            failed += 1
+        (alive / "docs").mkdir()
+        (alive / "docs" / "agent-overlay.yaml").write_text("schema: 1\n", encoding="utf-8")
+        (alive / ".claude" / "skills").mkdir(parents=True)
+        (alive / ".claude" / "skills" / MANIFEST).write_text("{}\n", encoding="utf-8")
+        if not looks_bound(alive):
+            print("looks_bound missed a checkout with overlay + manifest", file=sys.stderr)
+            failed += 1
+        if discover_bound_projects(bound_tmp) != [alive.resolve()]:
+            print(f"discover_bound_projects = {discover_bound_projects(bound_tmp)!r}", file=sys.stderr)
+            failed += 1
+    finally:
+        if previous is None:
+            os.environ.pop(BOUND_ENV, None)
+        else:
+            os.environ[BOUND_ENV] = previous
+        import shutil
+
+        shutil.rmtree(bound_tmp, ignore_errors=True)
+
+    shown = _display(HOME / "Development" / "example-app", Path(".claude/skills/work-issue/SKILL.md"))
+    if shown != "~/Development/example-app/.claude/skills/work-issue/SKILL.md":
+        print(f"project wrapper path must name the bound checkout, got {shown!r}", file=sys.stderr)
+        failed += 1
+    if _display(HOME, Path(".claude/skills/work-issue/SKILL.md")) != "~/.claude/skills/work-issue/SKILL.md":
+        print("profile wrapper path drifted", file=sys.stderr)
+        failed += 1
+
     if failed:
         return 1
     print("gen_agent_wrappers self-test passed")
@@ -613,6 +830,11 @@ def main() -> int:
         action="store_true",
         help="assert a repo install gitignores the files it added, and exit",
     )
+    ap.add_argument(
+        "--skip-projects",
+        action="store_true",
+        help="do not offer to refresh remembered bound checkouts",
+    )
     args = ap.parse_args()
 
     if args.self_test:
@@ -623,9 +845,16 @@ def main() -> int:
         if not (repo / ".git").exists():
             print(f"{repo}: not a git checkout (no .git)", file=sys.stderr)
             return 2
-        return install_into_repo(repo, check=args.check)
+        rc = install_into_repo(repo, check=args.check)
+        if rc == 0 and not args.check:
+            remember_bound_project(repo)
+        return rc
 
-    return apply_install(HOME, HARNESSES, check=args.check)
+    rc = apply_install(HOME, HARNESSES, check=args.check)
+    if rc == 0 and not args.check and not args.skip_projects:
+        extra = refresh_bound_projects()
+        return extra or rc
+    return rc
 
 
 if __name__ == "__main__":
