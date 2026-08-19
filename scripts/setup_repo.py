@@ -34,6 +34,11 @@ the repo root. It will not overwrite without `--force` (non-interactive) or an
 explicit yes (interactive). Re-running on a repo that already has an overlay
 reuses those bindings as the interview defaults (and as the values a
 ``--force`` rewrite keeps), so Enter does not reset a finished setup.
+
+After this profile gains a workflow, refresh a bound project with
+``--update`` (or decline replacing the overlay in the interview): wrappers
+are rewritten, the overlay is left alone. Procedure edits need no refresh —
+the wrappers point at the files here.
 """
 
 from __future__ import annotations
@@ -353,6 +358,18 @@ def install_wrappers(cwd: Path) -> int:
         cwd=cwd,
     )
     return proc.returncode
+
+
+def refresh_repo(cwd: Path) -> int:
+    """Refresh generated wrappers in an already-bound checkout. Overlay stays."""
+    if find_overlay(cwd) is None:
+        print(
+            f"{cwd}: no overlay. Bind the repo first with setup_repo.py.",
+            file=sys.stderr,
+        )
+        return 2
+    _note("refreshing generated skill wrappers; overlay left unchanged")
+    return install_wrappers(cwd)
 
 
 def overlay_path(cwd: Path) -> Path:
@@ -1216,6 +1233,33 @@ def self_test() -> int:
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
+    import shutil
+    import tempfile
+
+    unbound = Path(tempfile.mkdtemp(prefix="setup-unbound-"))
+    try:
+        if refresh_repo(unbound) != 2:
+            print("refresh_repo should refuse a checkout with no overlay", file=sys.stderr)
+            failed += 1
+        (unbound / "docs").mkdir()
+        overlay = unbound / "docs" / "agent-overlay.yaml"
+        overlay.write_text("schema: 1\nproject:\n  name: already\n", encoding="utf-8")
+        before = overlay.read_text(encoding="utf-8")
+        if subprocess.run(["git", "init", "-q"], cwd=unbound).returncode != 0:
+            print("self-test: git init for --update failed", file=sys.stderr)
+            failed += 1
+        elif refresh_repo(unbound) != 0:
+            print("refresh_repo failed on a bound checkout", file=sys.stderr)
+            failed += 1
+        elif overlay.read_text(encoding="utf-8") != before:
+            print("refresh_repo rewrote the overlay", file=sys.stderr)
+            failed += 1
+        elif not (unbound / ".claude" / "skills" / "work-issue" / "SKILL.md").is_file():
+            print("refresh_repo did not write workflow wrappers", file=sys.stderr)
+            failed += 1
+    finally:
+        shutil.rmtree(unbound, ignore_errors=True)
+
     if failed:
         return 1
     extra = f", {len(samples)} overlays against schema" if validator is not None else ""
@@ -1233,6 +1277,11 @@ def main() -> int:
         help="project checkout (default: current directory)",
     )
     ap.add_argument("--force", action="store_true", help="overwrite an existing overlay")
+    ap.add_argument(
+        "--update",
+        action="store_true",
+        help="refresh workflow wrappers in an already-bound checkout; do not rewrite the overlay",
+    )
     ap.add_argument(
         "--print",
         action="store_true",
@@ -1274,6 +1323,12 @@ def main() -> int:
         print(f"{cwd}: not a git checkout (no .git)", file=sys.stderr)
         return 2
 
+    if args.update:
+        if args.print_only:
+            print("--update writes wrappers; do not combine it with --print", file=sys.stderr)
+            return 2
+        return refresh_repo(cwd)
+
     interactive = (not args.non_interactive) and sys.stdin.isatty()
     info = inspect(cwd)
     existing = cwd / info.target
@@ -1293,11 +1348,11 @@ def main() -> int:
     if target.exists() and not args.force and not args.print_only:
         if interactive:
             if not ask_yesno(f"{target} already exists. Replace it?", False):
-                print("aborted", file=sys.stderr)
-                return 2
+                return refresh_repo(cwd)
         else:
             print(
-                f"{target}: already exists. Edit it, or rerun with --force to replace it.",
+                f"{target}: already exists. Edit it, rerun with --force to replace it, "
+                "or --update to refresh wrappers only.",
                 file=sys.stderr,
             )
             return 2

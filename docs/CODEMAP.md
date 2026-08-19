@@ -20,7 +20,7 @@ is behind the code, regenerate it.**
 | Tests | 1 |
 | Python files | 5 |
 | Python modules with public symbols | 5 |
-| Make targets | 14 |
+| Make targets | 15 |
 
 ## Layout
 
@@ -37,7 +37,7 @@ is behind the code, regenerate it.**
 
 ## Make targets
 
-`check`, `guard-test`, `help`, `install`, `install-repo`, `map`, `map-check`, `map-test`, `overlay`, `setup-repo`, `setup-repo-test`, `unbound`, `wrappers-check`, `wrappers-test`
+`check`, `guard-test`, `help`, `install`, `install-repo`, `map`, `map-check`, `map-test`, `overlay`, `setup-repo`, `setup-repo-test`, `unbound`, `update-repo`, `wrappers-check`, `wrappers-test`
 
 ## Python
 
