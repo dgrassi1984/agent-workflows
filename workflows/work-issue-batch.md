@@ -101,15 +101,19 @@ big is how a queue fills with approved work nobody touches.
 ### 2. Claim, then one worktree, one branch, one pull request
 
 As soon as the batch is chosen — before the worktree, and before any edit —
-`issue.label-add` the claim label on every issue in it, then `issue.labels-of` to
-confirm it took. If the project's conventions require an agent signature, post
-`started-work` on each issue now (`references/agent-signature.md`). This
-workflow is `work-issue-batch`; the actions are the same ones `work-issue` uses.
+`issue.assignee-add` the logged-in forge user on every issue in it, then
+`issue.view` to confirm it took. If the overlay names a claim label,
+`issue.label-add` it on every issue, then `issue.labels-of` to confirm. Assign
+even when there is no claim label, and even if a leftover overlay still lists
+`assignee` under `never_set`. If assignment did not take, say so and continue.
+If the project's conventions require an agent signature, post `started-work` on
+each issue now (`references/agent-signature.md`). This workflow is
+`work-issue-batch`; the actions are the same ones `work-issue` uses.
 
-Leave the claim on for the whole implementation. Remove it only when the issue is
-closed, or when a pull request is opened that links it. Never drop it mid-batch
-because the work paused, the session ended, or you moved on to the next issue in
-the same batch.
+Leave the assignment and the claim on for the whole implementation. Remove them
+only when the issue is closed, or when a pull request is opened that links it.
+Never drop them mid-batch because the work paused, the session ended, or you
+moved on to the next issue in the same batch.
 
 ```bash
 git worktree add -b <type>/batch-<slug> <worktree.root> origin/<default_branch>
@@ -137,10 +141,10 @@ deliberately rather than by momentum.
 ### 5. Open the pull request
 
 Push and open it per `work-issue.md` step 8. The body already carries a closing
-keyword per issue; that is a link, so `issue.label-remove` the claim. If the
-project's conventions require an agent signature, post `developed-issue` on
-each issue and `opened-pr` on the pull request — still
-`workflow=work-issue-batch`.
+keyword per issue; that is a link, so `issue.assignee-remove` the logged-in
+user and `issue.label-remove` the claim. If the project's conventions require
+an agent signature, post `developed-issue` on each issue and `opened-pr` on
+the pull request — still `workflow=work-issue-batch`.
 
 **If `ship.enabled` is not true, stop here** and report. Everything below is the
 shipping half.
@@ -167,9 +171,9 @@ must never type a password into any field.
 ### 7. Close the issues
 
 `issue.close` with a real comment naming the fix, the release it shipped in, and
-how it was verified — not "done". If the claim label is still on the issue (no
-linked pull request was opened), remove it here; closing is the other allowed
-removal.
+how it was verified — not "done". If the assignment or the claim label is still
+on the issue (no linked pull request was opened), remove them here; closing is
+the other allowed removal.
 
 ### 8. Next batch
 

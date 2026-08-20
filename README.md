@@ -101,8 +101,8 @@ overwrites, still keeping those current values. The key set, and what a
 missing key means, lives in `references/project-overlay.md`.
 
 A repo with no overlay still works: every workflow falls back to conservative
-defaults (read-only primary checkout, no queue, no claiming, stop at an open
-pull request, never deploy).
+defaults (read-only primary checkout, no queue, assign the logged-in user
+while working, stop at an open pull request, never deploy).
 
 ## The two guards
 

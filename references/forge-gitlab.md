@@ -22,6 +22,8 @@ has no equivalent, this file says so rather than offering a plausible flag.
 | `issue.labels-of` | `glab issue view <N> -F json` then read `.labels` |
 | `issue.label-add` | `glab issue update <N> --label <label>` |
 | `issue.label-remove` | `glab issue update <N> --unlabel <label>` |
+| `issue.assignee-add` | resolve `.username` from `glab api user`, then `glab issue update <N> --assignee +<username>` |
+| `issue.assignee-remove` | same lookup, then `glab issue update <N> --assignee !<username>` |
 | `issue.create` | `glab issue create -t "<t>" -l "<a,b>" -d "$(cat <path>)" -y` |
 | `issue.comment` | `glab issue note <N> -m "$(cat <path>)"` |
 | `issue.close` | `glab issue note <N> -m "<why>"` **then** `glab issue close <N>` |
@@ -31,6 +33,8 @@ has no equivalent, this file says so rather than offering a plausible flag.
 | `pr.create` | `glab mr create -b <default_branch> -s <branch> -t "<t>" -d "$(cat <path>)" -y` |
 | `pr.comment` | `glab mr note <N> -m "$(cat <path>)"` |
 | `pr.view` | `glab mr view <N>` |
+| `pr.assignee-add` | resolve `.username` from `glab api user`, then `glab mr update <N> --assignee +<username> -y` |
+| `pr.assignee-remove` | same lookup, then `glab mr update <N> --assignee !<username> -y` |
 | `pr.diff-names` | `glab mr diff <N>` (no `--name-only`; use `git diff --name-only <base>...<sha>`) |
 | `pr.for-current-branch` | `glab mr view` (no argument) |
 | `pr.fetch-head` | `git fetch origin merge-requests/<N>/head` |
@@ -51,6 +55,11 @@ has no equivalent, this file says so rather than offering a plausible flag.
   because the flag is missing — a bare close is the thing the workflows forbid.
 - **Pass `-y`** to `issue create` / `mr create` / `mr update` / `mr merge`, or
   the command waits on a confirmation prompt that no agent will answer.
+- **Assignment adds the logged-in user; it does not replace anyone.** Prefix
+  `+` to add and `!` to remove. Never `--unassign`: that flag drops every
+  assignee, not just you. There is no `@me`; look the username up from
+  `glab api user` (`.username`) each time. Read the assignees back from
+  `issue.view` / `pr.view` before treating the claim as real.
 - **The closing keyword is `Closes #<N>`** in the merge request description, same
   as GitHub, and it refers to an *issue* `#N` even though the MR itself is `!N`.
 - **`glab mr diff` prints a diff, not names.** For a file list, resolve the head

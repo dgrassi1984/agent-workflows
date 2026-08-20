@@ -44,7 +44,8 @@ before a human is asked to look at it.
    named below in `code font`.
 
 No overlay means the conservative defaults, and they are not a licence to guess:
-work only the issue you were given, claim nothing, and ask for the gate.
+work only the issue you were given, assign it to the logged-in forge user, and
+ask for the gate.
 
 ## Input
 
@@ -92,12 +93,16 @@ git worktree add -b <type>/<slug>-<N> <worktree.root> origin/<default_branch>
 Then provision it from the doc `worktree.provision` names. Every item on such a
 list is there because skipping it fails *quietly*.
 
-Claim the issue as soon as the worktree exists, before any edit — `issue.label-add`
-with the claim label, then `issue.labels-of` to confirm it took. Leave it on for
-the whole implementation. Remove it only when a pull request is opened that links
-the issue, or if the issue is closed without one. This workflow stops at an open
-pull request, so the removal is step 8. If the project's conventions require an
-agent signature, post `started-work` on the issue now
+Claim the issue as soon as the worktree exists, before any edit.
+`issue.assignee-add` the logged-in forge user, then `issue.view` to confirm it
+took. If the overlay names a claim label, `issue.label-add` that too, then
+`issue.labels-of` to confirm. Leave both on for the whole implementation.
+Remove them only when a pull request is opened that links the issue, or if the
+issue is closed without one. This workflow stops at an open pull request, so
+the removal is step 8. Assign even when there is no claim label, and even if a
+leftover overlay still lists `assignee` under `never_set`. If assignment did
+not take, say so and continue. If the project's conventions require an agent
+signature, post `started-work` on the issue now
 (`references/agent-signature.md`).
 
 **Everything from here — edits, tests, the app you drive, the commit, the push —
@@ -288,8 +293,8 @@ for a reviewer who has read the issue and not your diff: lead with what the issu
 got wrong or missed, then what's here, the evidence, what you verified and how,
 what you could **not** verify and why, test results, and docs.
 
-The linked pull request is now the claim, so `issue.label-remove` the claim
-label.
+The linked pull request is now the claim, so `issue.assignee-remove` the
+logged-in user and `issue.label-remove` the claim label.
 
 If the project's conventions require an agent signature, post `developed-issue`
 on the issue and `opened-pr` on the pull request
