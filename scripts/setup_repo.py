@@ -22,7 +22,7 @@ Or from this repo::
 
 On a TTY it interviews. `--non-interactive` (or a non-TTY) writes only what it
 can see on disk and leaves placeholders for the rest. It will not invent a
-gate or a release ritual. Branch prefixes are read from `origin`, not typed.
+gate or a deploy ritual. Branch prefixes are read from `origin`, not typed.
 Issue labels you opt into (`human-approved`, `wip`, `design-needed`, a
 severity scheme) are created on the forge if they are missing. A yes to the
 code map writes `docs/CODEMAP.md` from tracked sources. Generated skill
@@ -57,6 +57,8 @@ HOME = Path.home()
 CONVENTIONS_CANDIDATES = ("AGENTS.md", "CONTRIBUTING.md")
 CODEMAP_CANDIDATES = ("docs/CODEMAP.md", "CODEMAP.md")
 OVERLAY_CANDIDATES = ("docs/agent-overlay.yaml", "agent-overlay.yaml")
+VERSION_FILE_CANDIDATES = ("pyproject.toml", "package.json", "Cargo.toml", "VERSION")
+CHANGELOG_CANDIDATES = ("CHANGELOG.md", "CHANGES.md", "CHANGELOG.rst")
 CLEAR = "-"
 
 # Standard names this operator already uses across repos. The interview
@@ -129,7 +131,7 @@ def profile_label() -> str:
 def yaml_str(value: str) -> str:
     """Quote a scalar only when YAML would otherwise misread it."""
     if value == "" or value != value.strip() or value in {
-        "true", "false", "null", "yes", "no", "on", "off",
+        "true", "false", "null", "none", "yes", "no", "on", "off",
         "True", "False", "None", "Yes", "No",
     }:
         return json.dumps(value)
@@ -160,7 +162,13 @@ class Overlay:
     worktree_provision: str | None = None
     ship_enabled: bool = False
     ship_authorization: str = "ask"
+    ship_after_merge: bool = False
     ship_procedure: str | None = None
+    ship_versioning_scheme: str = "semver"
+    ship_versioning_bump: str = "infer"
+    ship_versioning_files: list[str] = field(default_factory=list)
+    ship_versioning_changelog: str | None = None
+    ship_versioning_tag: str = "v{version}"
     failure_classes: str | None = None
     docs_move_with_code: list[str] = field(default_factory=list)
     install_codemap: bool = False
@@ -212,6 +220,8 @@ class Overlay:
             found.append("worktree")
         if self.ship_enabled:
             found.append("ship.enabled")
+        if self.ship_after_merge:
+            found.append("ship.after_merge")
         if self.failure_classes:
             found.append("review.failure_classes")
         if self.docs_move_with_code:
@@ -334,6 +344,17 @@ def infer_conventions(cwd: Path) -> str | None:
 
 def infer_codemap(cwd: Path) -> str | None:
     for rel in CODEMAP_CANDIDATES:
+        if (cwd / rel).is_file():
+            return rel
+    return None
+
+
+def infer_version_files(cwd: Path) -> list[str]:
+    return [rel for rel in VERSION_FILE_CANDIDATES if (cwd / rel).is_file()]
+
+
+def infer_changelog(cwd: Path) -> str | None:
+    for rel in CHANGELOG_CANDIDATES:
         if (cwd / rel).is_file():
             return rel
     return None
@@ -463,8 +484,24 @@ def apply_existing_overlay(info: Overlay, data: dict) -> Overlay:
             info.ship_enabled = bool(ship["enabled"])
         if ship.get("authorization") in {"ask", "pre-authorized"}:
             info.ship_authorization = ship["authorization"]
+        if "after_merge" in ship:
+            info.ship_after_merge = bool(ship["after_merge"])
         if "procedure" in ship:
             info.ship_procedure = ship["procedure"] or None
+        versioning = ship.get("versioning")
+        if isinstance(versioning, dict):
+            if versioning.get("scheme") in {"semver", "none"}:
+                info.ship_versioning_scheme = versioning["scheme"]
+            if versioning.get("bump") in {"infer", "patch", "ask"}:
+                info.ship_versioning_bump = versioning["bump"]
+            if "files" in versioning:
+                info.ship_versioning_files = _str_list(versioning.get("files"))
+            if "changelog" in versioning:
+                value = versioning["changelog"]
+                info.ship_versioning_changelog = "none" if value is None else (value or None)
+            tag = versioning.get("tag")
+            if isinstance(tag, str) and tag.strip():
+                info.ship_versioning_tag = tag
     review = data.get("review")
     if isinstance(review, dict) and "failure_classes" in review:
         info.failure_classes = review["failure_classes"] or None
@@ -705,31 +742,52 @@ def interview(info: Overlay, cwd: Path) -> Overlay:
 
     _note("== Ship ==")
     want_ship = ask_yesno(
-        "May a workflow go past an open pull request (tag, release, deploy, close)?",
+        "May a workflow go past an open pull request (bump, tag, optional deploy)?",
         info.ship_enabled,
     )
     if want_ship:
+        info.ship_enabled = True
         info.ship_authorization = ask_choice(
             "Authorization",
             ("ask", "pre-authorized"),
             info.ship_authorization or "ask",
         )
-        procedure = ask(
-            "Release/deploy procedure (repo-relative path)", info.ship_procedure
+        info.ship_after_merge = ask_yesno(
+            "After land-prs merges, continue into release?",
+            info.ship_after_merge,
         )
+        info.ship_versioning_bump = ask_choice(
+            "Version bump policy",
+            ("infer", "patch", "ask"),
+            info.ship_versioning_bump or "infer",
+        )
+        inferred_files = info.ship_versioning_files or infer_version_files(cwd)
+        info.ship_versioning_files = ask_lines(
+            "Version files that must all receive the new version. "
+            "Empty = auto-detect.",
+            inferred_files or None,
+        )
+        changelog_default = info.ship_versioning_changelog or infer_changelog(cwd)
+        changelog = ask(
+            "Changelog path (or 'none' to skip; empty = auto if present)",
+            changelog_default,
+        )
+        info.ship_versioning_changelog = changelog
+        procedure = ask(
+            "Deploy/verify procedure (optional, repo-relative path)",
+            info.ship_procedure,
+        )
+        info.ship_procedure = procedure
         if procedure:
-            info.ship_enabled = True
-            info.ship_procedure = procedure
             _warn_missing(cwd, procedure, "ship.procedure")
         else:
-            info.ship_enabled = False
-            info.ship_procedure = None
-            _note("  shipping with no procedure is incoherent — leaving enabled: false")
+            _note("  no deploy procedure — release will stop after the tag")
     else:
         info.ship_enabled = False
+        info.ship_after_merge = False
         if not info.ship_procedure:
             info.ship_procedure = ask(
-                "Placeholder path for a future release doc", None
+                "Placeholder path for a future deploy doc", None
             )
     _note("")
 
@@ -998,23 +1056,48 @@ def render(info: Overlay) -> str:
         ])
     lines.append("")
 
-    if info.ship_enabled and info.ship_procedure:
+    if info.ship_enabled:
         lines += [
             "ship:",
             "  enabled: true",
             f"  authorization: {info.ship_authorization}",
-            f"  procedure: {yaml_str(info.ship_procedure)}",
+            f"  after_merge: {'true' if info.ship_after_merge else 'false'}",
+            "  versioning:",
+            f"    scheme: {info.ship_versioning_scheme}",
+            f"    bump: {info.ship_versioning_bump}",
         ]
+        if info.ship_versioning_files:
+            lines.append("    files:")
+            for path in info.ship_versioning_files:
+                lines.append(f"      - {yaml_str(path)}")
+        else:
+            lines.append("    # files: []                 # unset: auto-detect")
+        if info.ship_versioning_changelog:
+            lines.append(f"    changelog: {yaml_str(info.ship_versioning_changelog)}")
+        else:
+            lines.append("    # changelog: CHANGELOG.md   # unset: auto if present; none to skip")
+        lines.append(f"    tag: {yaml_str(info.ship_versioning_tag)}")
+        if info.ship_procedure:
+            lines.append(f"  procedure: {yaml_str(info.ship_procedure)}")
+        else:
+            lines.append("  # procedure: docs/deploy.md   # optional; deploy/verify only")
     else:
         lines += [
             "ship:",
             "  enabled: false               # workflows stop at an open pull request",
+            "  # after_merge: false           # land-prs continues into release.md",
+            "  # versioning:",
+            "  #   scheme: semver",
+            "  #   bump: infer                # or patch, ask",
+            "  #   files: []                  # unset: auto-detect",
+            "  #   changelog: CHANGELOG.md    # unset: auto if present; none to skip",
+            "  #   tag: v{version}",
+            "  # authorization: ask          # or pre-authorized",
         ]
         if info.ship_procedure:
             lines.append(f"  # procedure: {yaml_str(info.ship_procedure)}")
         else:
-            lines.append("  # authorization: ask          # or pre-authorized")
-            lines.append("  # procedure: docs/release.md  # required before enabled: true")
+            lines.append("  # procedure: docs/deploy.md   # optional; deploy/verify only")
     lines.append("")
 
     if info.failure_classes:
@@ -1103,7 +1186,11 @@ def self_test() -> int:
         worktree_provision="docs/worktrees.md",
         ship_enabled=True,
         ship_authorization="ask",
+        ship_after_merge=False,
         ship_procedure="docs/release.md",
+        ship_versioning_bump="infer",
+        ship_versioning_files=["pyproject.toml"],
+        ship_versioning_changelog="CHANGELOG.md",
         failure_classes="CONTRIBUTING.md",
         docs_move_with_code=["make map"],
     )
@@ -1131,6 +1218,10 @@ def self_test() -> int:
         "gate:",
         "  - npm test",
         "enabled: true",
+        "after_merge: false",
+        "bump: infer",
+        "  - pyproject.toml",
+        "changelog: CHANGELOG.md",
         "procedure: docs/release.md",
         "docs_move_with_code:",
     ):
@@ -1143,6 +1234,8 @@ def self_test() -> int:
         "# conventions:",
         "# gate:",
         "enabled: false",
+        "# after_merge:",
+        "# versioning:",
         "# procedure:",
         "# issues:",
     ):
@@ -1167,14 +1260,34 @@ def self_test() -> int:
         schema = json.loads((REPO / "overlay.schema.json").read_text(encoding="utf-8"))
         validator = Draft202012Validator(schema)
 
+    tag_only = render(
+        Overlay(
+            name="lib",
+            target=Path("agent-overlay.yaml"),
+            ship_enabled=True,
+            ship_authorization="ask",
+            ship_after_merge=True,
+        )
+    )
+    if any(line.strip().startswith("procedure:") for line in tag_only.splitlines()):
+        print("tag-only overlay required a deploy procedure", file=sys.stderr)
+        failed += 1
+    if "after_merge: true" not in tag_only:
+        print("tag-only overlay missing after_merge: true", file=sys.stderr)
+        failed += 1
+
     if validator is not None:
-        samples = [rendered, bare]
+        samples = [rendered, bare, tag_only]
         for sample in samples:
             data = yaml.safe_load(sample)
             for err in validator.iter_errors(data):
                 where = ".".join(str(p) for p in err.path) or "(root)"
                 print(f"rendered overlay {where}: {err.message}", file=sys.stderr)
                 failed += 1
+        bad = {"schema": 1, "ship": {"enabled": False, "after_merge": True}}
+        if not any(validator.iter_errors(bad)):
+            print("after_merge: true with enabled: false should fail the schema", file=sys.stderr)
+            failed += 1
 
     try:
         import yaml as yaml_mod
@@ -1196,7 +1309,10 @@ def self_test() -> int:
             ("approved_label", "approved"),
             ("claim_label", "in-progress"),
             ("ship_enabled", True),
+            ("ship_after_merge", False),
             ("ship_procedure", "docs/release.md"),
+            ("ship_versioning_bump", "infer"),
+            ("ship_versioning_changelog", "CHANGELOG.md"),
             ("failure_classes", "CONTRIBUTING.md"),
             ("from_overlay", True),
         ):
@@ -1206,6 +1322,12 @@ def self_test() -> int:
                 failed += 1
         if loaded.gate != ["npm test"] or loaded.block_labels != ["blocked"]:
             print(f"apply_existing_overlay lists drifted: gate={loaded.gate!r}", file=sys.stderr)
+            failed += 1
+        if loaded.ship_versioning_files != ["pyproject.toml"]:
+            print(
+                f"apply_existing_overlay version files drifted: {loaded.ship_versioning_files!r}",
+                file=sys.stderr,
+            )
             failed += 1
         placeholders = apply_existing_overlay(
             Overlay(name="blank", target=Path("agent-overlay.yaml")),

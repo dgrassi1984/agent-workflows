@@ -82,22 +82,15 @@ Cross-project operational rules. Project-specific invariants live in
 
 ## Releases
 
-**The ritual, in order:** tests fully green → bump the version (patch by
-default) → update the CHANGELOG → commit **only the changed files** → tag →
-push. Steps vary per project — confirm against `git log` and the project's
-CLAUDE.md before starting, especially whether release includes the push and
-whether commits carry a `Co-Authored-By` trailer.
+Cutting a version is a procedure, not a habit: follow `workflows/release.md`.
+The overlay's `ship.enabled` / `ship.versioning` / `ship.procedure` are the
+bindings. Do not improvise a bump / tag / push dance, and do not copy one
+into a project document.
 
-- Use the project's release skill or established procedure if one exists. Don't
-  improvise the bump / tag / push dance.
-- With parallel sessions sharing a git index, commit **pathspec-scoped**
-  (`git commit -- <paths>`), never `git add -A`, and verify `git diff --cached`
-  before committing.
-- **Default to patch bumps.** Minor bumps only on explicit request or a genuine
-  breaking change (deleted module, renamed env var, changed audit schema).
 - Never release on red or error-skipped tests.
-- Don't auto-commit unless explicitly asked — a project's CLAUDE.md may forbid
-  it outright.
+- Commit **pathspec-scoped** (`git commit -- <paths>`), never `git add -A`.
+- Verify the **running** version after deploy, not git or `ps`.
+- Don't auto-commit unless the overlay's authorization (or the user) said to.
 
 ## Doc-and-code changes at scale
 

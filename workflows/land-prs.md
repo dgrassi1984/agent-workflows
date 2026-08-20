@@ -7,7 +7,8 @@ description: >-
   Optimize the landing order, avoid redundant tests, automatically resolve
   technical blockers, and ask only for genuine product decisions. Do not use it
   for a read-only review (that is review-pr), to implement an issue, or to
-  release and deploy.
+  cut a release on its own (that is release). When ship.after_merge is true it
+  hands off to release after the batch is on the target.
 argument-hint: "[PR numbers or URLs] (defaults to the open PRs the user meant)"
 display_name: "Land pull requests"
 short_description: "Review, repair, and merge authorized pull requests"
@@ -17,8 +18,10 @@ wrapper_note: |-
   read-only. Every rebase, repair, test run and app you drive happens in a
   worktree.
 
-  This workflow merges. It does **not** tag, release, or deploy, whatever the
-  overlay says about shipping. Merging is not shipping.
+  This workflow merges. Merging is not shipping. It does **not** bump a
+  version, tag, or deploy itself. When `ship.after_merge` is true it hands
+  off to `release.md` once, after the last requested pull request is on the
+  target.
 ---
 
 # Land authorized pull requests
@@ -36,17 +39,20 @@ losing a commit or landing the wrong tree.
 ## Before anything: read the bindings
 
 `references/project-overlay.md`, then this project's overlay. The keys that
-carry this workflow are `gate`, `worktree.provision`, and
-`review.failure_classes`. Then `references/forge-<kind>.md` for the command
-behind every operation named below, and `references/worktree-rule.md` before
-you create a tree.
+carry this workflow are `gate`, `worktree.provision`,
+`review.failure_classes`, and `ship.after_merge`. Then
+`references/forge-<kind>.md` for the command behind every operation named
+below, and `references/worktree-rule.md` before you create a tree.
 
 No overlay means the conservative defaults: read-only primary checkout, ask
-for the gate rather than inventing one, and never report an ungated branch as
-verified.
+for the gate rather than inventing one, never report an ungated branch as
+verified, and do not continue into a release.
 
-This workflow does **not** read `ship.enabled`. Merging a pull request is not
-shipping. Do not tag, release, deploy, or invent a release ritual here.
+Merging a pull request is not shipping. Do not bump, tag, or deploy in this
+file. The only exception is the handoff in "After the batch": when
+`ship.after_merge` is true, follow `release.md` once. `after_merge: true`
+without `ship.enabled` is incoherent — stop and say so rather than
+releasing.
 
 ## Input
 
@@ -71,7 +77,9 @@ This workflow runs only when the user has authorized merging. A request such as
 - Removing a merged source branch when that is already this repository's habit.
 
 It does not authorize deployment, release, production data changes, or
-unrelated improvements.
+unrelated improvements. `ship.after_merge` is the overlay authorizing a
+handoff to `release.md` after this batch; that workflow has its own
+authorization check. Without that flag, a successful merge is the end.
 
 If the user asked for a review only, stop and follow `review-pr.md`. Do not
 repair, push, or merge.
@@ -312,6 +320,22 @@ Never treat a successful command message as proof. After merging:
    their provisioning.
 8. Use the new target SHA as the baseline for the next pull request.
 
+## After the batch
+
+When every requested pull request is merged, already verified as merged, or
+explicitly blocked, look at `ship.after_merge`.
+
+- False, or absent, or no overlay: stop. Report. This is the usual end.
+- True, and at least one pull request merged in this run: follow
+  `release.md` **once** for the whole batch, not once per pull request.
+  Pass the final default-branch SHA and the pull-request / issue numbers
+  that landed. Do not pass a pull request that stayed open.
+- True, but nothing merged (everything blocked or already merged before
+  you started): do not cut a release for work you did not land.
+
+One bump covers everything that just landed. Three patch-sized pull
+requests are not three releases.
+
 ## Completion report
 
 `references/recap.md` carries who the reader is, the readability contract and
@@ -328,7 +352,10 @@ Report:
 - Linked issue status.
 - Any pull request left open and the exact product decision blocking it.
   `pr.assignee-remove` the logged-in user when you park it.
+- Whether `release.md` ran, was skipped because `after_merge` is off, or
+  was skipped because nothing landed — and the version it cut, if any.
 
 Do not call the batch complete until every requested pull request is merged,
 already verified as merged, or explicitly blocked by a genuine product
-decision.
+decision. A pending release handoff is not a reason to leave a merged pull
+request unreported.

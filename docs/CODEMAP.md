@@ -15,8 +15,8 @@ is behind the code, regenerate it.**
 
 |  |  |
 |---|---|
-| Tracked files | 31 |
-| Languages | 22 Markdown, 5 Python, 1 YAML, 1 JSON |
+| Tracked files | 32 |
+| Languages | 23 Markdown, 5 Python, 1 YAML, 1 JSON |
 | Tests | 1 |
 | Python files | 5 |
 | Python modules with public symbols | 5 |
@@ -26,9 +26,9 @@ is behind the code, regenerate it.**
 
 | Path | Files |
 |---|---|
+| `workflows/` | 7 |
 | `references/` | 6 |
 | `skills/` | 6 |
-| `workflows/` | 6 |
 | `scripts/` | 5 |
 | `(root)` | 4 |
 | `docs/` | 2 |

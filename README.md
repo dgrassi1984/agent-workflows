@@ -63,7 +63,7 @@ that says so.
 
 Each harness gets a short generated wrapper that **points** at
 `workflows/<name>.md` rather than copying it: one copy on disk, and an edit takes
-effect without reinstalling. The same six workflows and five reference skills
+effect without reinstalling. The same seven workflows and five reference skills
 land in every harness.
 
 ## Adding a project
@@ -79,7 +79,8 @@ Or from this repo: `make setup-repo DIR=/path/to/project`.
 That interviews on a TTY: confirms what it can see (forge, default branch, a
 conventions file, branch prefixes already on `origin`) and asks the rest —
 whether the checkout is shared, whether issues go through a queue, what the
-gate is, whether this project may ship, whether to generate a code map.
+gate is, whether this project may ship (versioning, after-merge, optional
+deploy), whether to generate a code map.
 Labels you opt into (`human-approved`, `wip`, `design-needed`, a severity
 scheme) are created on the forge if they are missing. A yes to the code map
 writes `docs/CODEMAP.md` from tracked sources and sets `docs_move_with_code`
@@ -119,7 +120,9 @@ Both exist because this design fails *quietly* when it fails.
 
 ## What does not belong here
 
-- A release ritual, a deploy target, a host, a database name.
+- A deploy target, a host, a database name, a lockfile, a version-file path.
+  Versioning *steps* (bump, changelog, tag) live in `workflows/release.md`;
+  the *names* live in `ship.versioning`; the cutover lives in `ship.procedure`.
 - A list of one codebase's silent failure modes. That is the least transferable
   knowledge there is and the fastest to rot away from the code that produces it;
   the overlay points at where the project keeps it.

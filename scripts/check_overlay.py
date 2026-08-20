@@ -8,8 +8,9 @@ questions the workflows cannot answer for themselves:
   mode here, because nothing breaks: the workflow falls back to the conservative
   default and quietly stops at a pull request, or quietly works no queue at all,
   and the only symptom is an agent being oddly timid.
-* **Does the file agree with itself?** `ship.enabled: true` with no `procedure`
-  would have an agent invent a release ritual.
+* **Does the file agree with itself?** `ship.after_merge: true` with
+  `enabled` not true would have land-prs hand off to a release that must
+  stop.
 
 It deliberately does **not** check that the paths named inside exist — those are
 repo-local facts, and the project checks them in its own CI where the files are.

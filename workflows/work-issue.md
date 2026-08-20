@@ -12,7 +12,8 @@ description: >-
   as a direct commit. Do not use it for read-only questions about an issue ("what
   does #397 say?", "summarise the open issues"), for reviewing or landing a PR
   someone else opened, for working several issues as one shipped batch, or for
-  the release ritual — those are different jobs with their own workflows.
+  the release ritual (that is release) — those are different jobs with their
+  own workflows.
 argument-hint: "[issue number, URL, or description]"
 display_name: "Work an Issue"
 short_description: "Take one issue to a verified, reviewable pull request"

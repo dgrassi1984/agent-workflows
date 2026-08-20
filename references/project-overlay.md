@@ -39,7 +39,8 @@ Or from this repo: `make setup-repo DIR=/path/to/project`.
 On a TTY the command interviews: it confirms what it can see on disk (forge,
 default branch, a conventions or codemap file, branch prefixes already on
 `origin`) and asks the rest — checkout sharing, the issue queue, the gate,
-whether this project may ship, whether to generate a code map. Issue labels
+whether this project may ship (and if so, versioning and whether a merge
+continues into a release), whether to generate a code map. Issue labels
 you opt into are created on the forge if they are missing (`human-approved`,
 `wip`, `design-needed`, and the severity scheme you pick). A yes to the code
 map writes `docs/CODEMAP.md` from tracked sources (the generator lives in
@@ -67,7 +68,7 @@ wrapper-only path.
 
 `--non-interactive` (or a non-TTY) writes only the inferences and the
 placeholders for keys the overlay has not decided. It will not invent a
-gate, a label scheme or a release ritual. It will not overwrite an existing
+gate, a label scheme or a deploy ritual. It will not overwrite an existing
 overlay without `--force` (or an explicit yes, when interviewing).
 `--print` writes the file to stdout instead of disk.
 
@@ -164,15 +165,51 @@ a copy: this repo never learns what is in it.
 |---|---|---|
 | `enabled` | may a workflow go past an open pull request? | **`false`** |
 | `authorization` | `pre-authorized` or `ask` | **`ask`** |
-| `procedure` | the project's own release/deploy document | none |
+| `after_merge` | after `land-prs` finishes a batch, continue into `release.md`? | **`false`** |
+| `procedure` | the project's own **deploy/verify** document | none |
+| `versioning` | how a version is cut; see below | semver, infer, auto files |
 
 With `enabled: false` — including when there is no overlay at all — every
-workflow **stops at an open pull request**. It does not tag, release, deploy, or
-close the issue. Shipping is a property of a project plus your trust in it, never
-a property of a procedure.
+workflow **stops at an open pull request**. It does not bump a version, tag,
+release, deploy, or close the issue. Shipping is a property of a project plus
+your trust in it, never a property of a procedure.
 
-`enabled: true` with no `procedure` is incoherent: stop and say so rather than
-inventing a release ritual.
+`enabled: true` turns on the default release ritual in `workflows/release.md`
+(gate, bump, changelog, commit, tag, push). A `procedure` is optional and is
+**only** the project-specific deploy and verify steps — hosts, artefacts,
+migrations. Do not put the bump/tag dance in it; that lives here, once. A
+procedure that still describes those steps is behind the workflow: the
+workflow skips the repeated parts rather than double-bumping.
+
+`after_merge: true` without `enabled: true` is incoherent: the schema rejects
+it. `after_merge` does not apply to `work-issue-batch` — that workflow already
+continues into `release.md` whenever `enabled` is true.
+
+`enabled: true` with `versioning.scheme: none` and no `procedure` is
+incoherent: stop and say so rather than inventing a ritual. Versioning
+defaults (scheme semver, bump infer) mean a project can tag without a
+deploy document.
+
+#### `ship.versioning`
+
+| Key | Means | Default |
+|---|---|---|
+| `scheme` | `semver` or `none` | **`semver`** when shipping is enabled |
+| `bump` | `infer`, `patch`, or `ask` | **`infer`** |
+| `files` | repo-relative paths that must all receive the new version | **auto-detect** — first hits among `pyproject.toml`, `package.json`, `Cargo.toml`, `VERSION` that exist at the repo root |
+| `changelog` | repo-relative path, or `none` | **auto-detect** — `CHANGELOG.md`, then `CHANGES.md`, then `CHANGELOG.rst`; if none of those exist, skip (do not invent a changelog) |
+| `tag` | tag string, `{version}` substituted | **`v{version}`** |
+
+An empty `files` list is auto-detect, not "tags only". Tags-only is
+`files: []` with every auto-detect candidate missing — then the last matching
+tag is the current version. If files that *were* listed disagree about the
+current version, that is a stop, not a guess.
+
+`bump: infer` reads the work being released (commits since the last matching
+tag, or the pull requests a handoff named): a breaking change is major; a
+user-visible feature is minor; everything else is patch. Mixed work takes the
+highest. Ask only when the titles and bodies genuinely do not say. `patch`
+skips that and always patches. `ask` always asks.
 
 ### `review`
 
@@ -199,7 +236,8 @@ the issue the user named — do not filter a queue by a label you guessed. Assig
 the issue (and a pull request under review) to the logged-in forge user, and
 unassign when done; do not invent a claim label. Ask for the test gate rather
 than inventing one; do not report a branch as verified without one. Stop at an
-open pull request: no tag, no release, no deploy, no closing the issue. Read the
+open pull request: no version bump, no tag, no release, no deploy, no closing
+the issue. Read the
 README and whatever conventions file exists, and say plainly which of these
 defaults you fell back on.
 
@@ -240,6 +278,13 @@ worktree:
 ship:
   enabled: true
   authorization: pre-authorized
+  after_merge: false
+  versioning:
+    scheme: semver
+    bump: infer
+    files: [pyproject.toml]
+    changelog: CHANGELOG.md
+    tag: v{version}
   procedure: docs/agent-workflows/release-and-deploy.md
 
 review:
@@ -248,6 +293,9 @@ review:
 docs_move_with_code:
   - make map
 ```
+
+A library that tags on merge and never deploys can omit `procedure` entirely:
+`enabled: true` plus `after_merge: true` is enough; versioning defaults apply.
 
 And the whole of a second repo's, which only tracks issues and never ships from
 an agent:

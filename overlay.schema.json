@@ -54,14 +54,27 @@
       "properties": {
         "enabled": { "type": "boolean", "default": false },
         "authorization": { "enum": ["pre-authorized", "ask"], "default": "ask" },
-        "procedure": { "type": "string" }
+        "after_merge": { "type": "boolean", "default": false },
+        "procedure": { "type": "string", "description": "repo-relative deploy/verify document; optional once versioning defaults apply" },
+        "versioning": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "scheme": { "enum": ["semver", "none"], "default": "semver" },
+            "bump": { "enum": ["infer", "patch", "ask"], "default": "infer" },
+            "files": { "type": "array", "items": { "type": "string" }, "description": "repo-relative paths that must all receive the new version; empty means auto-detect" },
+            "changelog": { "type": "string", "description": "repo-relative path, or 'none'; unset means auto-detect" },
+            "tag": { "type": "string", "default": "v{version}" }
+          }
+        }
       },
       "allOf": [
         {
-          "if": { "properties": { "enabled": { "const": true } }, "required": ["enabled"] },
+          "if": { "properties": { "after_merge": { "const": true } }, "required": ["after_merge"] },
           "then": {
-            "required": ["procedure"],
-            "description": "shipping with no release procedure is incoherent — an agent would have to invent the ritual"
+            "properties": { "enabled": { "const": true } },
+            "required": ["enabled"],
+            "description": "after_merge without shipping is incoherent — land-prs would hand off to a release that must stop"
           }
         }
       ]

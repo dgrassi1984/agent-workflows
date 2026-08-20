@@ -3,8 +3,9 @@ name: work-issue-batch
 description: >-
   Work through a project's open, approved issues in coherent batches — select 1–3
   related issues, fix them on one shared branch in a worktree, test, open one pull
-  request, then (only where the project allows it) release, deploy, verify and
-  close the issues, and repeat until the queue is empty or a real blocker is hit.
+  request, then (only where the project allows it) merge, follow the release
+  workflow, deploy, verify and close the issues, and repeat until the queue is
+  empty or a real blocker is hit.
   Use when asked to continue the issue queue, ship the next batch, work through
   the open issues, clear the backlog, or pick up where a prior batch session left
   off — "keep going", "ship the next batch", "work the queue". This is the
@@ -26,8 +27,9 @@ wrapper_note: |-
 # Work approved issues in batches
 
 One batch in, one pull request out — and where the project allows it, one
-deployed release and a set of closed issues. Then the next batch, until the queue
-is empty or something genuinely needs a human call.
+tagged version, one deploy if the overlay names a procedure, and a set of
+closed issues. Then the next batch, until the queue is empty or something
+genuinely needs a human call.
 
 **This document owns only what is different about working several issues as one
 unit.** The mechanics of getting a single issue right — hypothesis not spec, read
@@ -46,8 +48,11 @@ rather than working every open issue.
 
 **`ship.enabled` decides where this workflow ends.** False, or absent, or no
 overlay at all: it ends at an open pull request, exactly like `work-issue`, and
-steps 5b–7 below do not run. True with no `ship.procedure`: stop and say so
-rather than inventing a release ritual.
+steps 5a–7 below do not run. True: merge the pull request, then follow
+`release.md`. `ship.after_merge` does not apply here — this *is* the shipping
+workflow, and `enabled` is the switch. `versioning.scheme: none` with no
+`ship.procedure` is incoherent: stop and say so rather than inventing a
+ritual.
 
 ## Input
 
@@ -57,7 +62,7 @@ batch instead of auto-selecting. Otherwise pick, using the rules below.
 ## Authorization
 
 When `ship.authorization` is `pre-authorized`, run the loop without asking per
-step: commit, push, release, deploy, close. When it is `ask` — or absent — take
+step: commit, push, merge, release, deploy, close. When it is `ask` — or absent — take
 one explicit go-ahead before the first thing that leaves the branch.
 
 Raise a question **up front** only when genuinely blocked: ambiguous scope, a
@@ -149,33 +154,35 @@ the pull request — still `workflow=work-issue-batch`.
 **If `ship.enabled` is not true, stop here** and report. Everything below is the
 shipping half.
 
-### 5b. Release and deploy
+### 5a. Merge
 
-Follow `ship.procedure` exactly, and nothing else. It is the project's document
-because every step in it is a project fact — where the artefact is built, what
-pins the deployed version, whether migrations run themselves. Do not improvise
-around a step that looks redundant; those documents are usually a list of things
-that have each already cost something.
+This workflow may merge **its own** pull request when shipping is on — that is
+what going past an open pull request means. Fetch, confirm the SHA you gated
+is still the source, wait for `pr.checks` on that SHA, then `pr.merge` with
+the exact source-SHA guard. Use the merge method this repository already
+uses. Confirm on the target as `land-prs.md` does after a merge; do not
+repeat the review. Delete the source branch only when that is already this
+repository's habit.
 
-A batch of bug fixes is a patch-level release. A larger bump only for a genuine
-feature-level batch.
+If the merge does not take, stop. Do not cut a release from the batch
+branch.
 
-### 6. Verify against the deployed instance
+### 5b. Release
 
-Per `ship.procedure`. **Say exactly what you verified.** A clean health check
-plus a log tail is a different claim from "verified in the interface", and both
-should be reported as what they are. Where the deployed system is behind
-authentication, an authenticated click-through is the operator's job — an agent
-must never type a password into any field.
+Follow `release.md` from a worktree of the default branch. Pass the merge
+SHA and every issue number in the batch. It owns the bump, the tag, and
+(if `ship.procedure` exists) deploy and verify. Do not duplicate those
+steps here, and do not follow `ship.procedure` yourself.
 
-### 7. Close the issues
+### 6. Close the issues
 
-`issue.close` with a real comment naming the fix, the release it shipped in, and
-how it was verified — not "done". If the assignment or the claim label is still
-on the issue (no linked pull request was opened), remove them here; closing is
-the other allowed removal.
+Closing-keywords on merge should already have closed them. Comment on each
+with the version `release.md` cut and how it was verified — not "done". If
+an issue is still open, `issue.close` with that same comment. If the
+assignment or the claim label is still on (no linked pull request was
+opened), remove them here; closing is the other allowed removal.
 
-### 8. Next batch
+### 7. Next batch
 
 Do not stop to write a summary after every batch. Keep going until the queue is
 empty or a real blocker is hit.

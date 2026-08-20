@@ -67,6 +67,7 @@ writes — `#N` on one, `!N` on another. Copy the identifier, do not translate i
 | `work-issue-batch` | `workflows/work-issue-batch.md` |
 | `review-pr` | `workflows/review-pr.md` |
 | `land-prs` | `workflows/land-prs.md` |
+| `release` | `workflows/release.md` |
 | `clarify-design` | `workflows/clarify-design.md` |
 
 These are the filenames. They change when a procedure is added or renamed.
@@ -82,6 +83,7 @@ These are the filenames. They change when a procedure is added or renamed.
 | `review-started` | began reviewing the pull request |
 | `reviewed-pr` | review concluded |
 | `merged-pr` | merged the pull request |
+| `cut-release` | tagged a version; name the version on the artefact |
 | `clarified-design` | wrote the owner's decision onto the issue and dropped the blocking label, or closed the issue as already done |
 
 `work-issue-batch` reuses the `work-issue` actions. The `workflow` field is what
@@ -104,6 +106,7 @@ what distinguishes a landing from a review.
 | starting review | the pull request | `review-pr` or `land-prs` | `review-started` |
 | review concluded | the pull request and the linked issue | `review-pr` or `land-prs` | `reviewed-pr` |
 | pull request merged | the pull request and the linked issue | `land-prs` | `merged-pr` |
+| version tagged | each pull request / issue the handoff named | `release` | `cut-release` |
 | design unblocked (or closed as done) | the issue | `clarify-design` | `clarified-design` |
 
 Each workflow names the moment. This table is the closed map those moments
