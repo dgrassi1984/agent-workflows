@@ -129,7 +129,14 @@ approval unless the sequence itself changes product behaviour.
 
 ## Review and repair each pull request
 
-For each, follow `review-pr.md` against the original source SHA and its stated
+For each, `pr.assignee-add` the logged-in forge user before following
+`review-pr.md`, then `pr.view` to confirm it took. Assign even if a leftover
+overlay still lists `assignee` under `never_set`. If assignment did not take,
+say so and continue. The assign/unassign bookkeeping in `review-pr.md` does
+not run under this workflow; this one holds the assignment until the pull
+request is merged or parked.
+
+Then follow `review-pr.md` against the original source SHA and its stated
 target: read the linked issue, hunt the failure classes in
 `review.failure_classes`, reproduce important claims through the production
 entry point, and attribute any red test with a second worktree rather than a
@@ -294,15 +301,16 @@ Never treat a successful command message as proof. After merging:
 
 1. Fetch the target.
 2. `pr.view` and confirm it is merged.
-3. Confirm the landing tree matches the tested source tree.
-4. Confirm the linked issue closed when the pull request promised to close
+3. `pr.assignee-remove` the logged-in user.
+4. Confirm the landing tree matches the tested source tree.
+5. Confirm the linked issue closed when the pull request promised to close
    it. If it did not, say so; do not close it by hand. Closing by keyword on
    merge is the mechanism; this workflow does not ship.
-5. If the project's conventions require an agent signature, post `merged-pr`
+6. If the project's conventions require an agent signature, post `merged-pr`
    on the pull request and on the linked issue.
-6. Remove only the worktrees and branches this landing created, and undo
+7. Remove only the worktrees and branches this landing created, and undo
    their provisioning.
-7. Use the new target SHA as the baseline for the next pull request.
+8. Use the new target SHA as the baseline for the next pull request.
 
 ## Completion report
 
@@ -319,6 +327,7 @@ Report:
   and remote-check evidence.
 - Linked issue status.
 - Any pull request left open and the exact product decision blocking it.
+  `pr.assignee-remove` the logged-in user when you park it.
 
 Do not call the batch complete until every requested pull request is merged,
 already verified as merged, or explicitly blocked by a genuine product

@@ -181,7 +181,8 @@ The rules, in terms of the overlay:
 | `issues.block_labels` | the shape is open and must not be invented by an agent. |
 | `issues.approved_label` | **set this at creation** when the overlay names one. The ask to file is the approval; the batch queue reads this label. Do not skip it because a leftover overlay still lists it under `never_set`. Other workflows still never set it. |
 | `issues.claim_label` | **never set this at filing.** It is the claim that a session is already working the issue. |
-| everything in `issues.never_set` | exactly what it says, including the assignee — except `issues.approved_label`, which this workflow sets. Who does the work is the owner's call, and an auto-assigned issue reads as claimed when it is not. |
+| assignee | **never set this at filing.** Who does the work is claimed when a session starts it, not when the issue is written. An auto-assigned issue reads as claimed when it is not. |
+| everything in `issues.never_set` | exactly what it says — except `issues.approved_label`, which this workflow sets. |
 
 **Milestone is a scheduling decision, not yours.** Propose one only if the issue
 plainly belongs to an open milestone, and let the human say yes.

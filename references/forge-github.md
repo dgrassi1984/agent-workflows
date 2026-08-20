@@ -21,6 +21,8 @@ Verified against `gh` 2.64.
 | `issue.labels-of` | `gh issue view <N> --json labels --jq '.labels[].name'` |
 | `issue.label-add` | `gh issue edit <N> --add-label <label>` |
 | `issue.label-remove` | `gh issue edit <N> --remove-label <label>` |
+| `issue.assignee-add` | `gh issue edit <N> --add-assignee @me` |
+| `issue.assignee-remove` | `gh issue edit <N> --remove-assignee @me` |
 | `issue.create` | `gh issue create --title "<t>" --label "<a,b>" --body-file <path>` |
 | `issue.comment` | `gh issue comment <N> --body-file <path>` |
 | `issue.close` | `gh issue close <N> --comment "<why>"` |
@@ -29,9 +31,11 @@ Verified against `gh` 2.64.
 | `pr.search` | `gh pr list --state open --search "<terms>"` |
 | `pr.create` | `gh pr create --base <default_branch> --head <branch> --title "<t>" --body-file <path>` |
 | `pr.comment` | `gh pr comment <N> --body-file <path>` |
-| `pr.view` | `gh pr view <N> --json number,title,body,author,state,labels,url,headRefName,baseRefName,isDraft` |
+| `pr.view` | `gh pr view <N> --json number,title,body,author,state,labels,assignees,url,headRefName,baseRefName,isDraft` |
+| `pr.assignee-add` | `gh pr edit <N> --add-assignee @me` |
+| `pr.assignee-remove` | `gh pr edit <N> --remove-assignee @me` |
 | `pr.diff-names` | `gh pr diff <N> --name-only` |
-| `pr.for-current-branch` | `gh pr view --json number,title,body,author,state,labels,url,headRefName,baseRefName,isDraft` |
+| `pr.for-current-branch` | `gh pr view --json number,title,body,author,state,labels,assignees,url,headRefName,baseRefName,isDraft` |
 | `pr.fetch-head` | `git fetch origin pull/<N>/head` |
 | `pr.update-body` | `gh pr edit <N> --body-file <path>` |
 | `pr.checks` | `gh pr checks <N> --required` |
@@ -53,6 +57,12 @@ Verified against `gh` 2.64.
   (`git rev-parse FETCH_HEAD`) and use the SHA from then on. The next session to
   fetch in the same checkout overwrites it, and your later commands then
   silently describe their branch.
+- **`@me` is the logged-in user.** `issue.assignee-add` / `pr.assignee-add`
+  add that user; they do not replace anyone already assigned.
+  `issue.assignee-remove` / `pr.assignee-remove` take only `@me` off. Read
+  `assignees` back with `issue.view` / `pr.view` before treating the claim as
+  real — an org that forbids assigning non-collaborators can leave the list
+  unchanged.
 - **Creation can succeed with a label silently dropped.** Read it back with
   `issue.view` before reporting the issue as filed.
 - **`--match-head-commit` is the source-SHA guard.** Never omit it. Never pass

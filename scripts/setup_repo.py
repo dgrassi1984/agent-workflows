@@ -170,12 +170,13 @@ class Overlay:
         """The labels/fields an agent must not touch, derived from what we set.
 
         The approval label is not in this list: create-issue sets it when
-        filing. Other workflows still never set it.
+        filing. Other workflows still never set it. assignee is not in this
+        list either: starting work or a review assigns the logged-in user.
         """
         out = []
         if self.claim_label:
             out.append(self.claim_label)
-        out += ["assignee", "milestone"]
+        out += ["milestone"]
         return out
 
     def issue_labels(self) -> list[str]:
@@ -964,7 +965,7 @@ def render(info: Overlay) -> str:
             "  block_labels: [blocked]      # stop, this needs a human decision",
             "  claim_label: in-progress     # unset: no claiming protocol",
             "  severity_labels: [P0, P1, P2]",
-            "  never_set: [in-progress, assignee, milestone]",
+            "  never_set: [in-progress, milestone]",
         ])
     lines.append("")
 
@@ -1109,9 +1110,9 @@ def self_test() -> int:
     if full.issue_labels() != ["approved", "blocked", "in-progress", "P0", "P1"]:
         print(f"issue_labels = {full.issue_labels()!r}", file=sys.stderr)
         failed += 1
-    if full.never_set() != ["in-progress", "assignee", "milestone"]:
+    if full.never_set() != ["in-progress", "milestone"]:
         print(
-            f"never_set = {full.never_set()!r}, expected claim/assignee/milestone only",
+            f"never_set = {full.never_set()!r}, expected claim/milestone only",
             file=sys.stderr,
         )
         failed += 1
@@ -1126,7 +1127,7 @@ def self_test() -> int:
         "default_branch: main",
         "primary_checkout: read-only",
         "approved_label: approved",
-        "never_set: [in-progress, assignee, milestone]",
+        "never_set: [in-progress, milestone]",
         "gate:",
         "  - npm test",
         "enabled: true",

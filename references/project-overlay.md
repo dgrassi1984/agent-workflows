@@ -122,9 +122,9 @@ time can set `writable` and skip the worktree.
 |---|---|---|
 | `approved_label` | marks an issue cleared to build; `create-issue` sets it when filing | none — work only issues the user names |
 | `block_labels` | stop, do not build, this needs a human decision | `[]` |
-| `claim_label` | the "a session is on this" claim | none — no claiming protocol; check branches and open PRs instead |
+| `claim_label` | the "a session is on this" label | none — no label claim; assignment to the logged-in user still happens |
 | `severity_labels` | the severity scheme, exactly one per issue | none — do not invent one |
-| `never_set` | labels and fields an agent must not set | `[claim_label, assignee, milestone]` |
+| `never_set` | labels and fields an agent must not set | `[claim_label, milestone]` |
 
 A label named here that does not exist on the forge is an error worth reporting,
 not one to fix by creating the label. `create-issue` is the exception for
@@ -132,6 +132,13 @@ not one to fix by creating the label. `create-issue` is the exception for
 workflows still never set it. A project overlay that still lists the approval
 label under `never_set` is following the older default; `create-issue` sets
 the label anyway.
+
+`assignee` is not in the default. Starting work on an issue, or starting
+review of a pull request, assigns it to the logged-in forge user; the
+assignment is removed when that work is done. `create-issue` still never
+assigns — an auto-assigned issue reads as claimed when it is not. A leftover
+overlay that still lists `assignee` under `never_set` is following the older
+default; work and review workflows assign anyway.
 
 ### `gate`
 
@@ -188,11 +195,13 @@ Everything above, in one paragraph, for the common case of a repo that has never
 heard of this:
 
 Treat the primary checkout as read-only and work in a sibling worktree. Work only
-the issue the user named — do not filter a queue by a label you guessed. Claim
-nothing. Ask for the test gate rather than inventing one; do not report a branch
-as verified without one. Stop at an open pull request: no tag, no release, no
-deploy, no closing the issue. Read the README and whatever conventions file
-exists, and say plainly which of these defaults you fell back on.
+the issue the user named — do not filter a queue by a label you guessed. Assign
+the issue (and a pull request under review) to the logged-in forge user, and
+unassign when done; do not invent a claim label. Ask for the test gate rather
+than inventing one; do not report a branch as verified without one. Stop at an
+open pull request: no tag, no release, no deploy, no closing the issue. Read the
+README and whatever conventions file exists, and say plainly which of these
+defaults you fell back on.
 
 ## Worked example
 
@@ -218,7 +227,7 @@ issues:
   block_labels: [design-needed]
   claim_label: wip
   severity_labels: [severity:critical, severity:high, severity:medium, severity:low]
-  never_set: [wip, assignee, milestone]
+  never_set: [wip, milestone]
 
 gate:
   - uv run ruff check .

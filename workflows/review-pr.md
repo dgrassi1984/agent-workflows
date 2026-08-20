@@ -64,6 +64,13 @@ git diff --stat origin/<default_branch>...<SHA>
 checkout overwrites it, and your later commands then silently describe their
 branch. Resolve it to a SHA once, at the top, and use that SHA from then on.
 
+Once `pr.view` has identified the pull request, `pr.assignee-add` the
+logged-in forge user, then `pr.view` to confirm it took. Assign even if a
+leftover overlay still lists `assignee` under `never_set`. If assignment did
+not take, say so and continue. Leave it on for the whole review. Remove it
+when this workflow's review has concluded, unless you are handing off to
+`land-prs.md`.
+
 If the project's conventions require an agent signature, post `review-started`
 on the pull request now (`references/agent-signature.md`). This workflow is
 `review-pr`.
@@ -204,14 +211,18 @@ If the project's conventions require an agent signature, post `reviewed-pr` on
 the pull request and on the linked issue (`references/agent-signature.md`)
 once the review has actually concluded — not before.
 
+`pr.assignee-remove` the logged-in user at that same moment, unless this
+review is handing off to `land-prs.md`.
+
 ## Merging
 
 If the user authorized repair and merge — including "fix the blockers and
-merge", or more than one pull request — stop and follow `land-prs.md`. That
-workflow owns sequencing, repair, force-with-lease, and the source-SHA guard.
+merge", or more than one pull request — leave the assignment on, stop, and
+follow `land-prs.md`. That workflow owns sequencing, repair, force-with-lease,
+and the source-SHA guard.
 
 A clean single pull request the user asked to merge, with no rewrite, may be
-merged from here: `pr.merge` with the exact source-SHA guard, then remove the
-review worktrees and undo their provisioning. If the default branch is red for
-unrelated reasons, say so in the report rather than quietly merging onto red.
-That is the operator's call.
+merged from here: `pr.assignee-remove`, then `pr.merge` with the exact
+source-SHA guard, then remove the review worktrees and undo their
+provisioning. If the default branch is red for unrelated reasons, say so in
+the report rather than quietly merging onto red. That is the operator's call.
