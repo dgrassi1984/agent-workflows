@@ -125,11 +125,31 @@ branch is a different job and lives in `land-prs.md`: exact
 Once the pull request is open and the push is confirmed, the branch lives on the
 remote and the worktree holds nothing you would miss.
 
+**Never delete the directory the session is sitting in.** A `cd` inside the
+same command as `git worktree remove` does not move the session: several
+harnesses keep the session working directory sticky, and the next tool call
+then finds a path that no longer exists and aborts. That is the failure that
+stops a batch loop after a merge — the work is on the remote, the next batch
+never starts.
+
+Before you remove the tree:
+
+1. Move the **session** working directory back to the primary checkout. Use
+   the same "change folder" mechanism you used to enter the worktree, not a
+   `cd` in the remove command.
+2. Confirm `pwd` is the primary checkout.
+3. Then:
+
 ```bash
-cd <primary checkout>
 git worktree remove ../<repo>-<slug>     # refuses if dirty; look before --force
 git worktree prune                       # picks up directories deleted by hand
 ```
+
+If the harness asked whether to make the worktree the session working
+directory: declining keeps the session on the primary checkout (pass the
+worktree as the working directory of each command) and step 1 is already
+done. Accepting is fine — then step 1 is load-bearing. Deleting first is
+how the session dies.
 
 Take anything the provisioning step created with it — a per-worktree database, a
 container, a reserved port. A stale one is a trap for the next session, and each

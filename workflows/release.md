@@ -213,7 +213,9 @@ version is a failed deploy, not a successful release.
 
 ## 10. Clean up
 
-Remove only the worktree this release created, and undo its provisioning.
+Move the session back to the primary checkout, then remove only the worktree
+this release created, and undo its provisioning. A `cd` in the remove
+command is not enough; see `references/worktree-rule.md`.
 Do not close issues: merge closing-keywords already did, or the caller
 (`work-issue-batch`) still will, with this version named.
 

@@ -167,6 +167,12 @@ repository's habit.
 If the merge does not take, stop. Do not cut a release from the batch
 branch.
 
+The batch worktree is now done. Move the session back to the primary
+checkout and remove the tree per `references/worktree-rule.md` **before**
+the next step. Release and the next batch each create a tree of their
+own; they cannot start from a session sitting in a directory you just
+deleted.
+
 ### 5b. Release
 
 Follow `release.md` from a worktree of the default branch. Pass the merge
@@ -202,6 +208,9 @@ empty or a real blocker is hit.
 - Every fix needs a regression test. A test that surprises you while writing it
   means a real bug was found — fix the code, never loosen the assertion.
 - Remove the worktree and undo its provisioning when the batch is delivered.
+  Leave it first: the session working directory must already be the primary
+  checkout. A `cd` in the same command as `git worktree remove` is not
+  enough (`references/worktree-rule.md`).
 
 ## When genuinely stuck
 

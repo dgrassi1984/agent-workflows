@@ -305,8 +305,9 @@ on the issue and `opened-pr` on the pull request
 pull request is not shipping, and this workflow does not ship even where the
 project allows it.
 
-Then remove the worktree and undo its provisioning, unless you are about to act
-on review feedback.
+Then move the session back to the primary checkout and remove the worktree
+and undo its provisioning, unless you are about to act on review feedback.
+A `cd` in the remove command is not enough; see `references/worktree-rule.md`.
 
 ## 9. Report back
 

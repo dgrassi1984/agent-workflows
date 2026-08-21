@@ -316,8 +316,9 @@ Never treat a successful command message as proof. After merging:
    merge is the mechanism; this workflow does not ship.
 6. If the project's conventions require an agent signature, post `merged-pr`
    on the pull request and on the linked issue.
-7. Remove only the worktrees and branches this landing created, and undo
-   their provisioning.
+7. Move the session back to the primary checkout, then remove only the
+   worktrees and branches this landing created, and undo their
+   provisioning (`references/worktree-rule.md`).
 8. Use the new target SHA as the baseline for the next pull request.
 
 ## After the batch

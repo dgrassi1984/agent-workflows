@@ -223,6 +223,7 @@ and the source-SHA guard.
 
 A clean single pull request the user asked to merge, with no rewrite, may be
 merged from here: `pr.assignee-remove`, then `pr.merge` with the exact
-source-SHA guard, then remove the review worktrees and undo their
-provisioning. If the default branch is red for unrelated reasons, say so in
+source-SHA guard, then move the session back to the primary checkout and
+remove the review worktrees and undo their provisioning
+(`references/worktree-rule.md`). If the default branch is red for unrelated reasons, say so in
 the report rather than quietly merging onto red. That is the operator's call.
