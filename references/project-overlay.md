@@ -74,6 +74,39 @@ overlay without `--force` (or an explicit yes, when interviewing).
 
 Hand-writing the same file is fine. The command is a starter, not a requirement.
 
+## Changing it later
+
+The overlay is the project's file, and an agent working in the repo may edit it
+directly. Reach for that when a binding is wrong or the project's needs moved:
+the gate command after a toolchain migration, a label renamed on the forge,
+`ship` turning on once a human says the project may ship. Do not work around a
+stale binding inside one session — every later session inherits the same
+stumble until the file says otherwise.
+
+How to edit it:
+
+- **Bindings only.** A step, an invariant or an inventory item does not belong
+  here, however convenient. Steps live in the workflows; invariants live in the
+  conventions document the overlay points at.
+- **Fill the placeholders.** A commented key is the contract showing you what
+  was never decided. Uncomment and fill it rather than inventing new structure;
+  the schema rejects keys it does not define, and a typo'd key fails *silent* —
+  the workflow falls back to the conservative default and the only symptom is
+  an agent being oddly timid.
+- **A key you leave alone keeps its default.** The defaults are the safe ones;
+  they are listed with each key above.
+- **Some edits need the human's word first.** `gate` (what counts as verified),
+  `ship.enabled`, `ship.authorization`, and anything `ship.procedure` names
+  change what an agent may do to the real world. Set them when the human asks
+  for exactly that — never because a workflow would get further without them.
+- **Validate.** Run
+  `python3 ~/Development/agent-workflows/scripts/check_overlay.py docs/agent-overlay.yaml`
+  (or the root path, wherever the file lives). It catches unknown keys and
+  incoherent combinations — `after_merge: true` without `enabled` — before
+  they cost a session.
+- **Commit it.** The overlay is project-owned content, unlike the generated
+  skill wrappers beside it, which are gitignored pointers at the profile.
+
 ## The conflict rule
 
 - The **overlay** wins on bindings — names, commands, hosts, labels, paths.

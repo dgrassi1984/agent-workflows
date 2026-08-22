@@ -99,7 +99,11 @@ overlay only when you want new placeholder keys in the file; Enter keeps
 the current bindings. Declining the replace still refreshes the wrappers.
 `--non-interactive` skips the questions. `--print` dry-runs; `--force`
 overwrites, still keeping those current values. The key set, and what a
-missing key means, lives in `references/project-overlay.md`.
+missing key means, lives in `references/project-overlay.md`. The wrappers
+installed into the repo carry the same message to its agents: the overlay is
+theirs to edit when the project's needs move — bindings only, fill the
+placeholders before inventing keys, gate and ship changes need your explicit
+word — and they name the `check_overlay.py` command that validates an edit.
 
 A repo with no overlay still works: every workflow falls back to conservative
 defaults (read-only primary checkout, no queue, assign the logged-in user

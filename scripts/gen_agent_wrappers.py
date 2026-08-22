@@ -351,6 +351,16 @@ def wrapper_body(meta: dict) -> str:
         "project's own conventions document wins on *engineering invariants*. Two",
         "documents disagreeing about a step is a bug in the docs, not a judgment",
         "call for you: say so instead of picking one.",
+        "",
+        "**Changing the bindings.** The overlay is the project's file, and it is",
+        "yours to edit: when a binding is missing or no longer fits what this",
+        "project needs, update `docs/agent-overlay.yaml` (else `agent-overlay.yaml`",
+        "at the root) rather than working around it in this session — every later",
+        "session inherits the same stumble until the file says otherwise. Bindings",
+        "only, never steps; fill the commented placeholders instead of inventing",
+        "keys; a key you leave keeps its conservative default; gate and ship",
+        "changes need the human's explicit word first. Validate the edit:",
+        f"`python3 {repo}/scripts/check_overlay.py <the file you edited>`.",
     ]
     if note:
         parts += ["", note]
