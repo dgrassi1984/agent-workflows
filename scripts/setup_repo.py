@@ -158,6 +158,7 @@ class Overlay:
     claim_label: str | None = None
     severity_labels: list[str] = field(default_factory=list)
     gate: list[str] = field(default_factory=list)
+    gate_evidence: dict[str, str] = field(default_factory=dict)
     worktree_root: str | None = None
     worktree_provision: str | None = None
     ship_enabled: bool = False
@@ -470,6 +471,8 @@ def apply_existing_overlay(info: Overlay, data: dict) -> Overlay:
             info.claim_label = issues["claim_label"] or None
         if "severity_labels" in issues:
             info.severity_labels = _str_list(issues.get("severity_labels"))
+    if "gate_evidence" in data:
+        info.gate_evidence = dict(data["gate_evidence"])
     if "gate" in data:
         info.gate = _str_list(data.get("gate"))
     worktree = data.get("worktree")
@@ -1041,6 +1044,12 @@ def render(info: Overlay) -> str:
             "  - <test command>",
         ])
     lines.append("")
+    if info.gate_evidence:
+        lines.append("gate_evidence:")
+        for key, value in info.gate_evidence.items():
+            lines.append(f"  {key}: {yaml_str(value)}")
+        lines.append("")
+
 
     if info.worktree_root or info.worktree_provision:
         lines.append("worktree:")

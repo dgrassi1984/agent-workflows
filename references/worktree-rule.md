@@ -122,8 +122,25 @@ branch is a different job and lives in `land-prs.md`: exact
 
 ## Remove it when the work is done
 
-Once the pull request is open and the push is confirmed, the branch lives on the
-remote and the worktree holds nothing you would miss.
+After a confirmed push, a disposable worktree may be removed if no review work
+remains. After a confirmed merge, cleanup is required before reporting the
+landing complete: include the original implementation worktree for that pull
+request, even when an earlier task created it, as well as disposable review and
+repair worktrees. Discover these with `git worktree list --porcelain` and match
+them to the verified pull request source branch and SHA. Do not sweep unrelated
+worktrees or remove the primary checkout.
+
+For post-merge removal, confirm the forge reports the pull request merged and
+verify its landing on the fetched target. Require the implementation worktree
+HEAD to match the merged source SHA; squash and rebase merges need the forge source SHA
+and verified landing tree, not an ancestry assumption.
+
+For every removal, inspect tracked, untracked and ignored files and recursive submodule status for work that must
+be retained. A later commit, local edits, valuable local artifacts, another
+active task/process, or pending release/validation work means the tree is not
+disposable. Preserve it and report the specific blocker; retry cleanup when
+that dependency is finished. Review worktrees may also be removed after a
+review ends without a merge, once their evidence is retained and no work remains.
 
 **Never delete the directory the session is sitting in.** A `cd` inside the
 same command as `git worktree remove` does not move the session: several
@@ -141,8 +158,7 @@ Before you remove the tree:
 3. Then:
 
 ```bash
-git worktree remove ../<repo>-<slug>     # refuses if dirty; look before --force
-git worktree prune                       # picks up directories deleted by hand
+git worktree remove ../<repo>-<slug>     # refuses if dirty
 ```
 
 If the harness asked whether to make the worktree the session working
@@ -156,4 +172,14 @@ container, a reserved port. A stale one is a trap for the next session, and each
 worktree left behind keeps its branch checked out, which blocks that branch
 everywhere else.
 
-Keep the tree only if you are about to act on review feedback.
+If initialized submodules prevent ordinary removal, use `git worktree remove
+--force` only after the checks above establish that the tree, its submodules and
+ignored build outputs are disposable. Never force past unknown local work or a
+locked worktree. Do not use blanket directory deletion or pruning as a substitute
+for checking each tree.
+
+Retain required evidence and shared compiler caches outside the worktree before
+removing it. Verify both that the directory no longer exists and that its path
+is absent from `git worktree list --porcelain`. Report the removed paths and any
+retained paths with their blockers. Branch deletion follows the repository's
+separate branch policy; removing the folder does not require deleting a branch.
