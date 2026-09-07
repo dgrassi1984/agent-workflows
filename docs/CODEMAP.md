@@ -15,21 +15,21 @@ is behind the code, regenerate it.**
 
 |  |  |
 |---|---|
-| Tracked files | 32 |
-| Languages | 23 Markdown, 5 Python, 1 YAML, 1 JSON |
-| Tests | 1 |
-| Python files | 5 |
-| Python modules with public symbols | 5 |
-| Make targets | 15 |
+| Tracked files | 34 |
+| Languages | 24 Markdown, 6 Python, 1 YAML, 1 JSON |
+| Tests | 2 |
+| Python files | 6 |
+| Python modules with public symbols | 6 |
+| Make targets | 16 |
 
 ## Layout
 
 | Path | Files |
 |---|---|
+| `references/` | 7 |
 | `workflows/` | 7 |
-| `references/` | 6 |
+| `scripts/` | 6 |
 | `skills/` | 6 |
-| `scripts/` | 5 |
 | `(root)` | 4 |
 | `docs/` | 2 |
 | `.github/` | 1 |
@@ -37,15 +37,16 @@ is behind the code, regenerate it.**
 
 ## Make targets
 
-`check`, `guard-test`, `help`, `install`, `install-repo`, `map`, `map-check`, `map-test`, `overlay`, `setup-repo`, `setup-repo-test`, `unbound`, `update-repo`, `wrappers-check`, `wrappers-test`
+`check`, `gate-evidence-test`, `guard-test`, `help`, `install`, `install-repo`, `map`, `map-check`, `map-test`, `overlay`, `setup-repo`, `setup-repo-test`, `unbound`, `update-repo`, `wrappers-check`, `wrappers-test`
 
 ## Python
 
-5 modules expose a public class or function. Full list:
+6 modules expose a public class or function. Full list:
 [codemap/python.md](codemap/python.md).
 
 ## Tests
 
 | Path | Files |
 |---|---|
+| `scripts/` | 1 |
 | `tests/` | 1 |

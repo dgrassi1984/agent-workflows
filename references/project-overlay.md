@@ -182,6 +182,24 @@ Default: **none, and that is a blocker, not a licence.** Find the project's test
 command and confirm it with the user before pushing anything. Never invent a gate
 and never report an ungated branch as verified.
 
+### `gate_evidence` (opt-in)
+
+Absent: existing gate execution requirements are unchanged. Present: all three
+bindings below are required. This changes validation policy and requires the
+same explicit human authorization as changing `gate`.
+
+| Key | Means |
+|---|---|
+| `verify` | Read-only command that checks applicable trusted evidence for the current candidate; nonzero means run `gate` |
+| `release` | Command that validates the final version-bearing tree and release artifacts, reusing only applicable evidence |
+| `documentation` | Repository-relative evidence validity and provenance contract |
+
+Follow [gate-evidence.md](gate-evidence.md). These are commands and a document
+binding, not permission to trust a PR description, skip uncovered behavior, or
+accept artifacts supplied by an untrusted contributor. A diagnostic subset is
+not a candidate-wide pass. Selection must compare against the current target
+and conservatively cover unknown paths, deletions and shared dependencies.
+
 ### `worktree`
 
 | Key | Means | Default |

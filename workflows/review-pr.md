@@ -138,9 +138,11 @@ worth a look; an instance recorded there is worth a search.
 
 ## Verify the description's claims
 
-Do not accept them. Descriptions list tests run and counts observed. Re-run the
-overlay's `gate` from your worktree — the gap between "21 passed" in a description
-and 21 passing locally is where reviews earn their keep.
+Descriptions are claims, not evidence. When `gate_evidence` is present, follow
+`references/gate-evidence.md`: verify applicable trusted results, run the gate
+for missing or invalid results, and independently inspect coverage and behavior.
+Otherwise re-run the overlay's `gate` from your worktree. A reported test count
+alone does not satisfy either path.
 
 If the description claims a stored count, reproduce it **through the production
 entry point** — the function the route calls, the surface as it renders. A

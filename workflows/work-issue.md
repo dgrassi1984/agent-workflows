@@ -218,7 +218,11 @@ screenshot.
 **A silent empty result is a bug**, not a pass — zero rows added, a link that
 does nothing, usually a swallowed error. Root-cause it.
 
-Then run the overlay's `gate`, every command, in order. If something fails,
+Then run the overlay's `gate`, every command, in order. With `gate_evidence`
+configured, follow `references/gate-evidence.md` and retain the resulting record
+and artifact locations for review and release. Verify again after docs or other
+edits that follow validation; regenerate missing or invalid evidence before
+pushing. If something fails,
 establish whether it is *yours* before reporting it as pre-existing:
 
 ```bash

@@ -104,7 +104,14 @@ Find the latest tag that matches `ship.versioning.tag` (default `v{version}`).
 
 ## 3. Gate
 
-Run every command in the overlay's `gate`, in order. **Never release on red
+When `gate_evidence` is configured, follow `references/gate-evidence.md`.
+At this step inspect incoming evidence and identify missing coverage; execute
+the bound `release` command after step 7 has produced the final version-bearing
+tree, before step 8 publishes anything. For scheme `none`, run it here because
+there are no version/changelog edits to follow.
+
+Without that opt-in, run every command in the overlay's `gate`, in order.
+**Never release on red
 or error-skipped tests.** If the overlay names no gate, find the project's
 own test command and confirm it with the user. Never report an ungated tree
 as a release.
@@ -167,6 +174,11 @@ footers, add this version's entry to match its neighbours.
 **Do not invent a changelog format.** An empty or missing file means skip.
 
 ## 8. Commit, tag, push
+
+With `gate_evidence` configured, run its `release` command now on the final
+version-bearing tree. Require a complete pass before committing, tagging or
+pushing. Preserve the record and artifact locations. After any rebase or later
+edit, re-run this command; it decides which evidence is still applicable.
 
 ```bash
 git rev-parse --abbrev-ref HEAD
