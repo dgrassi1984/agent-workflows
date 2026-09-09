@@ -614,6 +614,8 @@ def ensure_gitignore(repo: Path, entries: list[str]) -> str:
     path = repo / ".gitignore"
     block = render_gitignore_block(entries)
     existing = path.read_text(encoding="utf-8") if path.is_file() else ""
+    if _managed_ignore_entries(existing) == sorted(entries):
+        return "unchanged"
     updated = replace_or_append_block(existing, block)
     if updated == existing:
         return "unchanged"
@@ -621,11 +623,20 @@ def ensure_gitignore(repo: Path, entries: list[str]) -> str:
     return "wrote" if not existing else "updated"
 
 
+def _managed_ignore_entries(text: str) -> list[str] | None:
+    """Compare rules, not cosmetic changes to the generator's location comment."""
+    if GITIGNORE_BEGIN not in text or GITIGNORE_END not in text:
+        return None
+    block = text.split(GITIGNORE_BEGIN, 1)[1].split(GITIGNORE_END, 1)[0]
+    return sorted(line.strip() for line in block.splitlines()
+                  if line.strip() and not line.lstrip().startswith("#"))
+
+
 def gitignore_stale(repo: Path, entries: list[str]) -> bool:
     path = repo / ".gitignore"
     if not path.is_file():
         return True
-    return render_gitignore_block(entries) not in path.read_text(encoding="utf-8")
+    return _managed_ignore_entries(path.read_text(encoding="utf-8")) != sorted(entries)
 
 
 def tracked_installed_paths(

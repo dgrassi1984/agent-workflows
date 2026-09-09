@@ -16,6 +16,7 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import workflow_run as w
+import gen_agent_wrappers as wrappers
 from setup_repo import Overlay, apply_existing_overlay, render
 import yaml
 from jsonschema import ValidationError, validate
@@ -100,6 +101,15 @@ class WorkflowTests(unittest.TestCase):
         saved = json.loads(Path(json.loads(output)["handoff"]).read_text())
         self.assertEqual(saved["head"], w.git(self.repo, "rev-parse", "HEAD"))
         self.assertEqual(saved["next_ordinal"], 1)
+
+    def test_wrapper_refresh_preserves_equivalent_ignore_rules(self):
+        entries = ["/.codex/skills/review-pr/"]
+        original = wrappers.render_gitignore_block(entries).replace("~/Development", "/some/home/Development")
+        path = self.repo / ".gitignore"
+        path.write_text(original)
+        self.assertEqual(wrappers.ensure_gitignore(self.repo, entries), "unchanged")
+        self.assertFalse(wrappers.gitignore_stale(self.repo, entries))
+        self.assertEqual(path.read_text(), original)
 
     def test_real_timeout_is_waived_not_passed_and_cannot_restart(self):
         result = self.run_job(["sleep 10"])
