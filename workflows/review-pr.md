@@ -138,9 +138,17 @@ worth a look; an instance recorded there is worth a search.
 
 ## Verify the description's claims
 
-Do not accept them. Descriptions list tests run and counts observed. Re-run the
-overlay's `gate` from your worktree — the gap between "21 passed" in a description
-and 21 passing locally is where reviews earn their keep.
+Verify the claims using `references/validation-policy.md`. Prefer the project
+evidence verifier for matching source inputs, toolchain, configuration and
+artifacts. Reproduce missing or disputed evidence and affected behavior; do not
+automatically rerun a valid aggregate gate already completed for this candidate.
+Descriptions alone are not evidence.
+
+If using independent reviewers, give each one bounded question and ask for
+blocking findings with evidence and affected lines. Re-review the changed part
+after fixes. Another broad round needs an unresolved concern or a material new
+change; polling, repeated reconnaissance and copying the parent checklist are
+not review assignments.
 
 If the description claims a stored count, reproduce it **through the production
 entry point** — the function the route calls, the surface as it renders. A

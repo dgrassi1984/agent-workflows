@@ -218,7 +218,10 @@ screenshot.
 **A silent empty result is a bug**, not a pass — zero rows added, a link that
 does nothing, usually a swallowed error. Root-cause it.
 
-Then run the overlay's `gate`, every command, in order. If something fails,
+Then follow `references/validation-policy.md` for focused checks, evidence reuse
+and the scheduled aggregate gate. When called from the batch workflow, perform
+focused checks here and leave the aggregate checkpoint to the batch boundary.
+If something fails,
 establish whether it is *yours* before reporting it as pre-existing:
 
 ```bash

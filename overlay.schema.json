@@ -40,6 +40,98 @@
       }
     },
     "gate": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "gate_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "verify": {
+          "type": "string"
+        },
+        "release": {
+          "type": "string"
+        },
+        "documentation": {
+          "type": "string"
+        }
+      }
+    },
+    "gate_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "fast_every",
+        "full_every",
+        "budgets_seconds",
+        "commands",
+        "timeout"
+      ],
+      "properties": {
+        "fast_every": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "full_every": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "budgets_seconds": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "focused",
+            "fast",
+            "full"
+          ],
+          "properties": {
+            "focused": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "fast": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "full": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        },
+        "commands": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "fast",
+            "full"
+          ],
+          "properties": {
+            "fast": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            },
+            "full": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        },
+        "timeout": {
+          "enum": [
+            "block",
+            "waive"
+          ],
+          "default": "block"
+        }
+      }
+    },
     "worktree": {
       "type": "object",
       "additionalProperties": false,
@@ -55,6 +147,8 @@
         "enabled": { "type": "boolean", "default": false },
         "authorization": { "enum": ["pre-authorized", "ask"], "default": "ask" },
         "after_merge": { "type": "boolean", "default": false },
+        "release_cadence": { "enum": ["per-batch", "checkpoint", "manual"], "default": "per-batch" },
+        "release_every": { "type": "integer", "minimum": 1 },
         "procedure": { "type": "string", "description": "repo-relative deploy/verify document; optional once versioning defaults apply" },
         "versioning": {
           "type": "object",
@@ -69,6 +163,10 @@
         }
       },
       "allOf": [
+        {
+          "if": { "properties": { "release_cadence": { "const": "checkpoint" } }, "required": ["release_cadence"] },
+          "then": { "required": ["release_every"] }
+        },
         {
           "if": { "properties": { "after_merge": { "const": true } }, "required": ["after_merge"] },
           "then": {

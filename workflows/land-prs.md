@@ -20,8 +20,8 @@ wrapper_note: |-
 
   This workflow merges. Merging is not shipping. It does **not** bump a
   version, tag, or deploy itself. When `ship.after_merge` is true it hands
-  off to `release.md` once, after the last requested pull request is on the
-  target.
+  off to `release.md` once when `ship.release_cadence` is due, after the last
+  requested pull request is on the target.
 ---
 
 # Land authorized pull requests
@@ -50,7 +50,7 @@ verified, and do not continue into a release.
 
 Merging a pull request is not shipping. Do not bump, tag, or deploy in this
 file. The only exception is the handoff in "After the batch": when
-`ship.after_merge` is true, follow `release.md` once. `after_merge: true`
+`ship.after_merge` is true and its release cadence is due, follow `release.md` once. `after_merge: true`
 without `ship.enabled` is incoherent — stop and say so rather than
 releasing.
 
@@ -134,6 +134,13 @@ remaining order after each merge.
 
 Tell the user the chosen sequence and any important assumption. Do not request
 approval unless the sequence itself changes product behaviour.
+
+Use `references/validation-policy.md` for shared cadence, evidence reuse,
+result classification and merge recording. An explicit `gate_policy` controls
+aggregate scheduling; the risk-based fallback below applies when it is absent.
+Existing user instructions take precedence. Apply `ship.release_cadence` before
+an automatic release handoff, including at the end of the requested batch.
+A deferred release is saved in the handoff and does not block an authorized merge.
 
 ## Review and repair each pull request
 
@@ -327,10 +334,12 @@ When every requested pull request is merged, already verified as merged, or
 explicitly blocked, look at `ship.after_merge`.
 
 - False, or absent, or no overlay: stop. Report. This is the usual end.
-- True, and at least one pull request merged in this run: follow
+- True, the release cadence is due, and at least one pull request merged in this run: follow
   `release.md` **once** for the whole batch, not once per pull request.
   Pass the final default-branch SHA and the pull-request / issue numbers
   that landed. Do not pass a pull request that stayed open.
+- True, but the cadence is not due: save the pending merges in the shared
+  handoff and report release deferred. Do not bump or tag.
 - True, but nothing merged (everything blocked or already merged before
   you started): do not cut a release for work you did not land.
 

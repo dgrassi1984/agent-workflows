@@ -104,10 +104,11 @@ Find the latest tag that matches `ship.versioning.tag` (default `v{version}`).
 
 ## 3. Gate
 
-Run every command in the overlay's `gate`, in order. **Never release on red
-or error-skipped tests.** If the overlay names no gate, find the project's
-own test command and confirm it with the user. Never report an ungated tree
-as a release.
+Follow `references/validation-policy.md`. Validate the final release tree with
+`gate_evidence.release`, or the configured full checkpoint, or the legacy `gate`
+when neither is defined. Reuse only verified matching evidence. Keep genuine
+failures blocking; explicit user timeout waivers remain waivers, not passes.
+If no gate is defined, establish the project command before publishing.
 
 ## 4. Decide the bump
 
@@ -238,3 +239,7 @@ Report:
 Do not call it released until the tag is on the remote. Do not call it
 deployed until you have read a running-version signal the procedure names,
 or said that there was no deploy.
+
+When a shared workflow ledger exists, after remote tag/readback verification
+record the tag with `record-release` from `references/validation-policy.md`.
+This advances the pending-release backlog without inventing a per-MR release.
