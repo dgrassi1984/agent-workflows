@@ -104,17 +104,14 @@ Find the latest tag that matches `ship.versioning.tag` (default `v{version}`).
 
 ## 3. Gate
 
-When `gate_evidence` is configured, follow `references/gate-evidence.md`.
-At this step inspect incoming evidence and identify missing coverage; execute
-the bound `release` command after step 7 has produced the final version-bearing
-tree, before step 8 publishes anything. For scheme `none`, run it here because
-there are no version/changelog edits to follow.
-
-Without that opt-in, run every command in the overlay's `gate`, in order.
-**Never release on red
-or error-skipped tests.** If the overlay names no gate, find the project's
-own test command and confirm it with the user. Never report an ungated tree
-as a release.
+Follow `references/validation-policy.md` for evidence reuse and result classification.
+When `gate_evidence` is configured, follow `references/gate-evidence.md`:
+inspect incoming evidence here, then run the bound `release` command after
+step 7 creates the final version-bearing tree and before step 8 publishes it.
+For scheme `none`, run it here because there are no version/changelog edits.
+Without that binding, use the configured full checkpoint or the legacy `gate`.
+Keep actual failures blocking and explicit user timeout waivers distinct from
+passes. If no gate is defined, establish the project command before publishing.
 
 ## 4. Decide the bump
 
@@ -176,8 +173,8 @@ footers, add this version's entry to match its neighbours.
 ## 8. Commit, tag, push
 
 With `gate_evidence` configured, run its `release` command now on the final
-version-bearing tree. Require a complete pass before committing, tagging or
-pushing. Preserve the record and artifact locations. After any rebase or later
+version-bearing tree. Apply the result and explicit waiver rules from
+`references/validation-policy.md` before committing, tagging or pushing. Preserve the record and artifact locations. After any rebase or later
 edit, re-run this command; it decides which evidence is still applicable.
 
 ```bash
@@ -250,3 +247,7 @@ Report:
 Do not call it released until the tag is on the remote. Do not call it
 deployed until you have read a running-version signal the procedure names,
 or said that there was no deploy.
+
+When a shared workflow ledger exists, after remote tag/readback verification
+record the tag with `record-release` from `references/validation-policy.md`.
+This advances the pending-release backlog without inventing a per-MR release.

@@ -49,7 +49,7 @@ rather than working every open issue.
 **`ship.enabled` decides where this workflow ends.** False, or absent, or no
 overlay at all: it ends at an open pull request, exactly like `work-issue`, and
 steps 5a–7 below do not run. True: merge the pull request, then follow
-`release.md`. `ship.after_merge` does not apply here — this *is* the shipping
+`release.md` when `ship.release_cadence` is due. `ship.after_merge` does not apply here — this *is* the shipping
 workflow, and `enabled` is the switch. `versioning.scheme: none` with no
 `ship.procedure` is incoherent: stop and say so rather than inventing a
 ritual.
@@ -137,11 +137,13 @@ commit cannot be reverted issue-by-issue when one of the three turns out wrong.
 
 ### 4. Gate before shipping
 
-Run every command in the overlay's `gate`, in order.
+Follow `references/validation-policy.md`: reuse the focused evidence from
+implementation, then run the aggregate checkpoint only when the shared plan
+requires it. Do not repeat the per-issue checks at the batch boundary.
 
-**Never ship on red or error-skipped tests.** Not "one unrelated failure" —
-establish whether it is yours, and if it is not, say so explicitly and decide
-deliberately rather than by momentum.
+Keep actual failures separate from timeouts and infrastructure limits. Apply
+explicit user waivers as described in the validation policy; never label a
+waived or incomplete check passed.
 
 ### 5. Open the pull request
 
@@ -175,27 +177,32 @@ deleted.
 
 ### 5b. Release
 
-Follow `release.md` from a worktree of the default branch. Pass the merge
-SHA and every issue number in the batch. It owns the bump, the tag, and
-(if `ship.procedure` exists) deploy and verify. Do not duplicate those
-steps here, and do not follow `ship.procedure` yourself.
+Record the verified merge and evidence with the shared helper. Follow
+`ship.release_cadence` and its shared pending-release count. When due, follow
+`release.md` from an isolated default-branch worktree, passing all pending merge
+SHAs and issue numbers. It owns versioning, publishing and any configured deploy.
+When deferred, retain those merges in the handoff; do not bump/tag each batch.
+Explicit release requests take precedence over the cadence.
 
 ### 6. Close the issues
 
 Closing-keywords on merge should already have closed them. Comment on each
-with the version `release.md` cut and how it was verified — not "done". If
+with the released version, or the merge SHA and “release deferred” when the
+checkpoint is not due, plus how it was verified. If
 an issue is still open, `issue.close` with that same comment. If the
 assignment or the claim label is still on (no linked pull request was
 opened), remove them here; closing is the other allowed removal.
 
 ### 7. Next batch
 
-Do not stop to write a summary after every batch. Keep going until the queue is
-empty or a real blocker is hit.
+Save the compact handoff in `references/validation-policy.md` at each batch
+boundary. Keep going under the existing authorization until the queue is empty
+or a real blocker is hit; a handoff is not a request for another confirmation.
 
 ## Non-negotiables
 
-- Never ship on a red or partially-skipped gate.
+- Never call failed, incomplete or waived checks passed; apply the shared
+  validation policy and existing user authorization.
 - Never edit a migration that has already been applied anywhere — add a new one.
 - Never `git add -A`; review `git status` before committing.
 - Before anything that could discard uncommitted work, run `git status` first.

@@ -339,18 +339,21 @@ def wrapper_body(meta: dict) -> str:
         f"# {title}",
         "",
         "This procedure is repo-independent and lives in one place. Read these two",
-        "files, in this order, before doing anything:",
+        "files in this order on first use; reuse them in this task unless changed:",
         "",
         f"1. `{repo}/references/project-overlay.md` — how to find the current",
         "   project's bindings, and what to do when it has none.",
         f"2. `{repo}/workflows/{name}.md` — the procedure. Follow it exactly,",
         "   treating the argument above as its input.",
         "",
-        "**Conflict rule.** The project's overlay wins on *bindings* — names,",
+        "**Conflict rule.** Explicit user instructions and existing authorization",
+        "take precedence. The project's overlay wins on *bindings* — names,",
         "commands, hosts, labels, paths. This procedure wins on *steps*. The",
         "project's own conventions document wins on *engineering invariants*. Two",
         "documents disagreeing about a step is a bug in the docs, not a judgment",
-        "call for you: say so instead of picking one.",
+        "call for you: resolve it using the user's instructions and the shared",
+        "validation policy; report an unresolved conflict without re-asking for",
+        "authorization already given.",
         "",
         "**Changing the bindings.** The overlay is the project's file, and it is",
         "yours to edit: when a binding is missing or no longer fits what this",
@@ -611,6 +614,8 @@ def ensure_gitignore(repo: Path, entries: list[str]) -> str:
     path = repo / ".gitignore"
     block = render_gitignore_block(entries)
     existing = path.read_text(encoding="utf-8") if path.is_file() else ""
+    if _managed_ignore_entries(existing) == sorted(entries):
+        return "unchanged"
     updated = replace_or_append_block(existing, block)
     if updated == existing:
         return "unchanged"
@@ -618,11 +623,20 @@ def ensure_gitignore(repo: Path, entries: list[str]) -> str:
     return "wrote" if not existing else "updated"
 
 
+def _managed_ignore_entries(text: str) -> list[str] | None:
+    """Compare rules, not cosmetic changes to the generator's location comment."""
+    if GITIGNORE_BEGIN not in text or GITIGNORE_END not in text:
+        return None
+    block = text.split(GITIGNORE_BEGIN, 1)[1].split(GITIGNORE_END, 1)[0]
+    return sorted(line.strip() for line in block.splitlines()
+                  if line.strip() and not line.lstrip().startswith("#"))
+
+
 def gitignore_stale(repo: Path, entries: list[str]) -> bool:
     path = repo / ".gitignore"
     if not path.is_file():
         return True
-    return render_gitignore_block(entries) not in path.read_text(encoding="utf-8")
+    return _managed_ignore_entries(path.read_text(encoding="utf-8")) != sorted(entries)
 
 
 def tracked_installed_paths(

@@ -23,6 +23,9 @@ jobs:
       - name: setup_repo still parses remotes and renders an overlay
         run: python scripts/setup_repo.py --self-test
 
+      - name: Shared cadence, budgets and evidence accounting
+        run: python -m unittest discover -s tests -p "test_workflow_run.py"
+
       - name: Evidence opt-in bindings remain compatible
         run: python scripts/test_gate_evidence.py
 

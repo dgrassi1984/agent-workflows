@@ -23,7 +23,7 @@ In the repository you are working in, in this order — first hit wins:
 1. `docs/agent-overlay.yaml`
 2. `agent-overlay.yaml` (repo root, for projects with no `docs/`)
 
-Read it **before** step 1 of any workflow. If neither exists, the project has not
+Read it on first use **before** step 1; retain it through the task unless the file changes. If neither exists, the project has not
 opted in, and the defaults in *No overlay* below apply.
 
 ## Writing one
@@ -109,6 +109,10 @@ How to edit it:
 
 ## The conflict rule
 
+Explicit user instructions and existing authorization override workflow defaults.
+For validation and release timing, use `validation-policy.md` consistently across
+implementation, review and shipping; do not ask again for an authorized waiver.
+
 - The **overlay** wins on bindings — names, commands, hosts, labels, paths.
 - **This procedure** wins on steps.
 - The project's own **conventions document** (`project.conventions`) wins on
@@ -176,29 +180,38 @@ default; work and review workflows assign anyway.
 
 ### `gate`
 
-A list of shell commands that must all pass before anything is pushed, in order.
+The legacy list of required validation commands, executed in order. With
+`gate_policy`, the shared validation policy schedules aggregates and focused
+checks instead of unconditionally executing this list at every workflow step.
 
 Default: **none, and that is a blocker, not a licence.** Find the project's test
 command and confirm it with the user before pushing anything. Never invent a gate
 and never report an ungated branch as verified.
 
-### `gate_evidence` (opt-in)
+### `gate_policy` and `gate_evidence`
 
-Absent: existing gate execution requirements are unchanged. Present: all three
-bindings below are required. This changes validation policy and requires the
-same explicit human authorization as changing `gate`.
+`gate_policy` is opt-in; absent means the existing required gate. It accepts:
 
-| Key | Means |
+| Key | Meaning |
 |---|---|
-| `verify` | Read-only command that checks applicable trusted evidence for the current candidate; nonzero means run `gate` |
-| `release` | Command that validates the final version-bearing tree and release artifacts, reusing only applicable evidence |
-| `documentation` | Repository-relative evidence validity and provenance contract |
+| `fast_every`, `full_every` | Positive merge intervals; full supersedes fast when both are due |
+| `budgets_seconds.focused/fast/full` | Positive total budgets including queue wait, setup and retries |
+| `commands.fast/full` | Nonempty ordered command lists for aggregate checkpoints |
+| `timeout` | `block` or an explicitly authorized `waive`; never convert timeout to pass |
 
-Follow [gate-evidence.md](gate-evidence.md). These are commands and a document
-binding, not permission to trust a PR description, skip uncovered behavior, or
-accept artifacts supplied by an untrusted contributor. A diagnostic subset is
-not a candidate-wide pass. Selection must compare against the current target
-and conservatively cover unknown paths, deletions and shared dependencies.
+Use `scripts/workflow_run.py` as described in [validation-policy.md](validation-policy.md).
+It persists state in the Git common directory across sibling worktrees. New
+adoption starts at zero; retain the counter across sessions. Focused commands
+are chosen from the changed behavior, not invented as empty checks to satisfy
+an aggregate interval. A policy edit requires user authorization and schema
+validation. A change to commands, toolchain or assets still invalidates evidence.
+
+`gate_evidence` accepts `verify` (the project's evidence verifier), `release`
+(the release coverage command), and `documentation` (repo-relative evidence
+contract). All three nonempty bindings are required. Follow
+[gate-evidence.md](gate-evidence.md) for provenance and artifact integrity; a
+diagnostic subset is not candidate-wide certification. These bindings do not
+weaken validation on their own.
 
 ### `worktree`
 
@@ -217,6 +230,8 @@ a copy: this repo never learns what is in it.
 | `enabled` | may a workflow go past an open pull request? | **`false`** |
 | `authorization` | `pre-authorized` or `ask` | **`ask`** |
 | `after_merge` | after `land-prs` finishes a batch, continue into `release.md`? | **`false`** |
+| `release_cadence` | `per-batch`, `checkpoint`, or `manual` | **`per-batch`**, preserving existing projects |
+| `release_every` | positive number of recorded merges before a checkpoint release | required for `checkpoint` |
 | `procedure` | the project's own **deploy/verify** document | none |
 | `versioning` | how a version is cut; see below | semver, infer, auto files |
 
@@ -234,7 +249,9 @@ workflow skips the repeated parts rather than double-bumping.
 
 `after_merge: true` without `enabled: true` is incoherent: the schema rejects
 it. `after_merge` does not apply to `work-issue-batch` — that workflow already
-continues into `release.md` whenever `enabled` is true.
+continues according to `release_cadence` when `enabled` is true. Explicit release
+requests override cadence. A deferred release remains in the shared ledger;
+merges can close issues with their SHA while awaiting the release checkpoint.
 
 `enabled: true` with `versioning.scheme: none` and no `procedure` is
 incoherent: stop and say so rather than inventing a ritual. Versioning

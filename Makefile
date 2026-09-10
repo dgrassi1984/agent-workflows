@@ -16,7 +16,7 @@ update-repo:  ## refresh wrappers in an already-bound DIR; leave the overlay alo
 	@test -n "$(DIR)" || { echo "usage: make update-repo DIR=/path/to/repo" >&2; exit 2; }
 	@$(PY) scripts/setup_repo.py --update "$(DIR)"
 
-check: gate-evidence-test unbound guard-test wrappers-check wrappers-test setup-repo-test map-test map-check  ## everything CI runs
+check: gate-evidence-test unbound guard-test wrappers-check wrappers-test setup-repo-test workflow-test map-test map-check  ## everything CI runs
 
 unbound:  ## fail if a procedure names something belonging to one project
 	@$(PY) scripts/check_unbound.py
@@ -48,6 +48,10 @@ map-check:  ## fail if the committed code map is behind the code
 
 map-test:  ## prove gen_codemap is deterministic and the extractors fire
 	@python3 scripts/gen_codemap.py --self-test
+
+.PHONY: workflow-test
+workflow-test:  ## verify shared cadence, deadlines and evidence accounting
+	@$(PY) -m unittest discover -s tests -p "test_workflow_run.py"
 
 gate-evidence-test:  ## validate opt-in evidence bindings and preservation
 	@$(PY) scripts/test_gate_evidence.py

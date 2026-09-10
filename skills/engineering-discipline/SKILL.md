@@ -20,9 +20,19 @@ Cross-project operational rules. Project-specific invariants live in
 - **Don't use `set -u` with bash functions called via `&`.** The interaction
   between positional args and unbound-variable checks is surprising.
   `set -o pipefail` alone is safer.
-- For polling external state the harness can't notify you about, use
-  ScheduleWakeup with realistic intervals — 20–30 min for non-urgent checks,
-  sub-5-minute only when watching something that genuinely changes that fast.
+- For validation, use the shared `workflow_run.py` helper described in
+  `~/Development/agent-workflows/references/validation-policy.md`. It serializes
+  heavy validation across projects, includes queue/provision/retries in the
+  budget, writes raw logs to disk and emits stage changes. Use its bounded
+  watcher or the tool's completion notification, not repeated model-driven
+  sleeps and unchanged log tails. Keep required user progress updates concise.
+- Queue heavy builds, renderer checks and benchmarks through the same host slot.
+  Lightweight inspection can run in parallel. Do not pause or change unrelated
+  active jobs without authorization. A baseline investigation should run the
+  failing scenario first, not start another complete suite by habit.
+- For external state, use the available scheduled-task/notification capability
+  only when the user requested monitoring. Select intervals appropriate to the
+  event; do not invent an unavailable scheduling API.
 
 ## Process design
 
@@ -49,11 +59,17 @@ Cross-project operational rules. Project-specific invariants live in
   the run is using.
 - Read status from the **source of truth**, not a log tail — one-shot boot
   events scroll out of view.
+- Return the verdict, a bounded relevant failure excerpt, and artifact paths.
+  Filter output before returning it; keep full logs on disk. Read source ranges
+  or diffs. Reuse applicable skill instructions after their first read unless
+  the source changes. Mandatory tool instructions still need to be read.
 
 ## Knob design
 
-- **Every CLI flag gets a matching env var.** Precedence is
-  **CLI > env > hardcoded default**.
+- Add environment overrides when deployment or operators need them. For
+  workflow commands and audit-sensitive policy, prefer explicit CLI arguments
+  and the project overlay; avoid a second hidden configuration channel. Where
+  both exist, precedence is **CLI > env > configured default**.
 - A bad env value falls through to the default with a warning on stderr. It must
   not crash boot.
 - For services, expose env vars for anything ops might tune. Live TUIs and
@@ -82,12 +98,16 @@ Cross-project operational rules. Project-specific invariants live in
 
 ## Releases
 
-Cutting a version is a procedure, not a habit: follow `workflows/release.md`.
+Cutting a version is a procedure, not a habit: follow
+`~/Development/agent-workflows/workflows/release.md`.
 The overlay's `ship.enabled` / `ship.versioning` / `ship.procedure` are the
 bindings. Do not improvise a bump / tag / push dance, and do not copy one
 into a project document.
 
-- Never release on red or error-skipped tests.
+- Follow `ship.release_cadence`; merge completion does not always require a new
+  version. Preserve pending merges for the next release checkpoint.
+- Keep assertion failures, infrastructure failures and authorized timeout
+  waivers distinct. Never report waived validation as passed.
 - Commit **pathspec-scoped** (`git commit -- <paths>`), never `git add -A`.
 - Verify the **running** version after deploy, not git or `ps`.
 - Don't auto-commit unless the overlay's authorization (or the user) said to.

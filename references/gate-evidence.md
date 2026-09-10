@@ -6,7 +6,9 @@ Otherwise keep each workflow's existing gate requirements.
 1. Read the bound documentation. Fetch the current target and identify the exact
    candidate, including staged, unstaged, untracked and submodule inputs.
 2. Run the bound `verify` command. A missing record, missing artifact, nonzero
-   exit, incompatible environment or uncovered required stage means run `gate`.
+   exit, incompatible environment or uncovered required stage means run the
+   missing coverage required by `validation-policy.md` (the legacy `gate` when
+   no cadence policy is configured).
    Do not translate a partially passing record into a candidate-wide pass.
 3. Reuse only locally trusted or authenticated CI evidence. The verifier must
    match relevant source content, gate definitions, commands, toolchain and test

@@ -138,11 +138,19 @@ worth a look; an instance recorded there is worth a search.
 
 ## Verify the description's claims
 
-Descriptions are claims, not evidence. When `gate_evidence` is present, follow
-`references/gate-evidence.md`: verify applicable trusted results, run the gate
-for missing or invalid results, and independently inspect coverage and behavior.
-Otherwise re-run the overlay's `gate` from your worktree. A reported test count
-alone does not satisfy either path.
+Verify the claims using `references/validation-policy.md`. Prefer the project
+evidence verifier for matching source inputs, toolchain, configuration and
+artifacts. Reproduce missing or disputed evidence and affected behavior; do not
+automatically rerun a valid aggregate gate already completed for this candidate.
+Descriptions alone are not evidence. When `gate_evidence` is configured,
+follow `references/gate-evidence.md` for trusted provenance and retained artifact
+integrity. With neither evidence reuse nor a cadence policy, run the legacy gate.
+
+If using independent reviewers, give each one bounded question and ask for
+blocking findings with evidence and affected lines. Re-review the changed part
+after fixes. Another broad round needs an unresolved concern or a material new
+change; polling, repeated reconnaissance and copying the parent checklist are
+not review assignments.
 
 If the description claims a stored count, reproduce it **through the production
 entry point** — the function the route calls, the surface as it renders. A

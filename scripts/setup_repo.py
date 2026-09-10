@@ -158,12 +158,15 @@ class Overlay:
     claim_label: str | None = None
     severity_labels: list[str] = field(default_factory=list)
     gate: list[str] = field(default_factory=list)
-    gate_evidence: dict[str, str] = field(default_factory=dict)
+    gate_policy: dict = field(default_factory=dict)
+    gate_evidence: dict = field(default_factory=dict)
     worktree_root: str | None = None
     worktree_provision: str | None = None
     ship_enabled: bool = False
     ship_authorization: str = "ask"
     ship_after_merge: bool = False
+    ship_release_cadence: str = "per-batch"
+    ship_release_every: int = 5
     ship_procedure: str | None = None
     ship_versioning_scheme: str = "semver"
     ship_versioning_bump: str = "infer"
@@ -471,10 +474,11 @@ def apply_existing_overlay(info: Overlay, data: dict) -> Overlay:
             info.claim_label = issues["claim_label"] or None
         if "severity_labels" in issues:
             info.severity_labels = _str_list(issues.get("severity_labels"))
-    if "gate_evidence" in data:
-        info.gate_evidence = dict(data["gate_evidence"])
     if "gate" in data:
         info.gate = _str_list(data.get("gate"))
+    for key in ("gate_policy", "gate_evidence"):
+        if isinstance(data.get(key), dict):
+            setattr(info, key, data[key])
     worktree = data.get("worktree")
     if isinstance(worktree, dict):
         if "root" in worktree:
@@ -483,6 +487,10 @@ def apply_existing_overlay(info: Overlay, data: dict) -> Overlay:
             info.worktree_provision = worktree["provision"] or None
     ship = data.get("ship")
     if isinstance(ship, dict):
+        if "release_cadence" in ship:
+            info.ship_release_cadence = ship["release_cadence"]
+        if "release_every" in ship:
+            info.ship_release_every = ship["release_every"]
         if "enabled" in ship:
             info.ship_enabled = bool(ship["enabled"])
         if ship.get("authorization") in {"ask", "pre-authorized"}:
@@ -1044,12 +1052,13 @@ def render(info: Overlay) -> str:
             "  - <test command>",
         ])
     lines.append("")
-    if info.gate_evidence:
-        lines.append("gate_evidence:")
-        for key, value in info.gate_evidence.items():
-            lines.append(f"  {key}: {yaml_str(value)}")
-        lines.append("")
 
+    for key in ("gate_policy", "gate_evidence"):
+        value = getattr(info, key)
+        if value:
+            import yaml
+            lines.extend(yaml.safe_dump({key: value}, sort_keys=False).rstrip().splitlines())
+            lines.append("")
 
     if info.worktree_root or info.worktree_provision:
         lines.append("worktree:")
@@ -1075,6 +1084,8 @@ def render(info: Overlay) -> str:
             "  enabled: true",
             f"  authorization: {info.ship_authorization}",
             f"  after_merge: {'true' if info.ship_after_merge else 'false'}",
+            f"  release_cadence: {info.ship_release_cadence}",
+            f"  release_every: {info.ship_release_every}",
             "  versioning:",
             f"    scheme: {info.ship_versioning_scheme}",
             f"    bump: {info.ship_versioning_bump}",

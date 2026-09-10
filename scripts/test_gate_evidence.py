@@ -30,7 +30,9 @@ class Contract(unittest.TestCase):
     def test_renderer_preserves_opt_in(self):
         info = Overlay(name='fixture', target=Path('/tmp/fixture'))
         apply_existing_overlay(info, {'gate_evidence': self.binding})
-        result = yaml.safe_load(render(info))
+        rendered = render(info)
+        self.assertEqual(rendered.count("\ngate_evidence:"), 1)
+        result = yaml.safe_load(rendered)
         self.assertEqual(result['gate_evidence'], self.binding)
         self.validator.validate(result)
 
