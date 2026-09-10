@@ -221,7 +221,9 @@ does nothing, usually a swallowed error. Root-cause it.
 Then follow `references/validation-policy.md` for focused checks, evidence reuse
 and the scheduled aggregate gate. When called from the batch workflow, perform
 focused checks here and leave the aggregate checkpoint to the batch boundary.
-If something fails,
+When `gate_evidence` is configured, follow `references/gate-evidence.md` and
+retain its results/artifacts. Reverify after later documentation or source
+edits; rerun invalidated coverage before pushing. If something fails,
 establish whether it is *yours* before reporting it as pre-existing:
 
 ```bash

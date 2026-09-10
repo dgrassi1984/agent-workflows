@@ -142,7 +142,9 @@ Verify the claims using `references/validation-policy.md`. Prefer the project
 evidence verifier for matching source inputs, toolchain, configuration and
 artifacts. Reproduce missing or disputed evidence and affected behavior; do not
 automatically rerun a valid aggregate gate already completed for this candidate.
-Descriptions alone are not evidence.
+Descriptions alone are not evidence. When `gate_evidence` is configured,
+follow `references/gate-evidence.md` for trusted provenance and retained artifact
+integrity. With neither evidence reuse nor a cadence policy, run the legacy gate.
 
 If using independent reviewers, give each one bounded question and ask for
 blocking findings with evidence and affected lines. Re-review the changed part

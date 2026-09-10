@@ -104,11 +104,14 @@ Find the latest tag that matches `ship.versioning.tag` (default `v{version}`).
 
 ## 3. Gate
 
-Follow `references/validation-policy.md`. Validate the final release tree with
-`gate_evidence.release`, or the configured full checkpoint, or the legacy `gate`
-when neither is defined. Reuse only verified matching evidence. Keep genuine
-failures blocking; explicit user timeout waivers remain waivers, not passes.
-If no gate is defined, establish the project command before publishing.
+Follow `references/validation-policy.md` for evidence reuse and result classification.
+When `gate_evidence` is configured, follow `references/gate-evidence.md`:
+inspect incoming evidence here, then run the bound `release` command after
+step 7 creates the final version-bearing tree and before step 8 publishes it.
+For scheme `none`, run it here because there are no version/changelog edits.
+Without that binding, use the configured full checkpoint or the legacy `gate`.
+Keep actual failures blocking and explicit user timeout waivers distinct from
+passes. If no gate is defined, establish the project command before publishing.
 
 ## 4. Decide the bump
 
@@ -168,6 +171,11 @@ footers, add this version's entry to match its neighbours.
 **Do not invent a changelog format.** An empty or missing file means skip.
 
 ## 8. Commit, tag, push
+
+With `gate_evidence` configured, run its `release` command now on the final
+version-bearing tree. Apply the result and explicit waiver rules from
+`references/validation-policy.md` before committing, tagging or pushing. Preserve the record and artifact locations. After any rebase or later
+edit, re-run this command; it decides which evidence is still applicable.
 
 ```bash
 git rev-parse --abbrev-ref HEAD

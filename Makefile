@@ -1,4 +1,4 @@
-.PHONY: help install install-repo update-repo check unbound guard-test wrappers-check wrappers-test overlay setup-repo setup-repo-test map map-check map-test
+.PHONY: gate-evidence-test help install install-repo update-repo check unbound guard-test wrappers-check wrappers-test overlay setup-repo setup-repo-test map map-check map-test
 
 PY := uv run --quiet --with pyyaml --with jsonschema python
 
@@ -16,7 +16,7 @@ update-repo:  ## refresh wrappers in an already-bound DIR; leave the overlay alo
 	@test -n "$(DIR)" || { echo "usage: make update-repo DIR=/path/to/repo" >&2; exit 2; }
 	@$(PY) scripts/setup_repo.py --update "$(DIR)"
 
-check: unbound guard-test wrappers-check wrappers-test setup-repo-test workflow-test map-test map-check  ## everything CI runs
+check: gate-evidence-test unbound guard-test wrappers-check wrappers-test setup-repo-test workflow-test map-test map-check  ## everything CI runs
 
 unbound:  ## fail if a procedure names something belonging to one project
 	@$(PY) scripts/check_unbound.py
@@ -52,3 +52,6 @@ map-test:  ## prove gen_codemap is deterministic and the extractors fire
 .PHONY: workflow-test
 workflow-test:  ## verify shared cadence, deadlines and evidence accounting
 	@$(PY) -m unittest discover -s tests -p "test_workflow_run.py"
+
+gate-evidence-test:  ## validate opt-in evidence bindings and preservation
+	@$(PY) scripts/test_gate_evidence.py

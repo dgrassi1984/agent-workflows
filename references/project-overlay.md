@@ -208,7 +208,10 @@ validation. A change to commands, toolchain or assets still invalidates evidence
 
 `gate_evidence` accepts `verify` (the project's evidence verifier), `release`
 (the release coverage command), and `documentation` (repo-relative evidence
-contract). These bindings do not weaken validation on their own.
+contract). All three nonempty bindings are required. Follow
+[gate-evidence.md](gate-evidence.md) for provenance and artifact integrity; a
+diagnostic subset is not candidate-wide certification. These bindings do not
+weaken validation on their own.
 
 ### `worktree`
 

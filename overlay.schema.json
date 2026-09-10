@@ -43,15 +43,26 @@
     "gate_evidence": {
       "type": "object",
       "additionalProperties": false,
+      "required": [
+        "verify",
+        "release",
+        "documentation"
+      ],
       "properties": {
         "verify": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1,
+          "description": "Read-only command verifying applicable trusted evidence for the current candidate; nonzero requires gate execution."
         },
         "release": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1,
+          "description": "Validate the final version-bearing tree and release artifacts; may reuse applicable evidence."
         },
         "documentation": {
-          "type": "string"
+          "type": "string",
+          "minLength": 1,
+          "description": "Repo-relative evidence validity and provenance contract."
         }
       }
     },

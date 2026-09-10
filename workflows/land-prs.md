@@ -213,6 +213,11 @@ Do not ask whether to perform an ordinary technical repair.
 
 ## Validate proportionally
 
+When `gate_evidence` is configured, follow `references/gate-evidence.md` for
+verification and reuse. Re-select coverage against the current target after
+repairs or rebases and carry evidence into the release handoff. This does not
+replace the code review or authorize a diagnostic subset as a full gate.
+
 Derive validation from the changed behaviour rather than running every
 available suite by habit. The overlay's `gate` is the project's required
 check, not a licence to skip it and not a requirement to re-run it after
@@ -323,9 +328,13 @@ Never treat a successful command message as proof. After merging:
    merge is the mechanism; this workflow does not ship.
 6. If the project's conventions require an agent signature, post `merged-pr`
    on the pull request and on the linked issue.
-7. Move the session back to the primary checkout, then remove only the
-   worktrees and branches this landing created, and undo their
-   provisioning (`references/worktree-rule.md`).
+7. Move the session back to the primary checkout, then remove disposable
+   worktrees belonging to the merged pull request, including its original
+   implementation worktree from an earlier task, and undo their provisioning.
+   Follow the ownership, source-SHA, local-work and active-use checks in
+   `references/worktree-rule.md`; verify the folders and registrations are gone.
+   Report any retained tree and its concrete blocker. Delete branches only
+   under the repository's existing branch policy.
 8. Use the new target SHA as the baseline for the next pull request.
 
 ## After the batch
