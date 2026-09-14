@@ -41,10 +41,26 @@ only stage changes and the final result returned to the model.
 
 The helper locks heavy work across projects and bounds queue wait, provisioning,
 commands and retries. Start it with the normal asynchronous shell tool; inspect
-completion with one bounded tool wait, or `watch <result-path>` (at most 55s).
-Do useful independent work while waiting. Avoid loops of model-driven sleeps,
-unchanged log tails and repeated “still running” commentary. Preserve required
-user updates; summarize the stage and what its result will resolve.
+completion with **one** bounded tool wait, or `watch <result-path>` (at most 55s).
+If that wait returns still running, do useful independent work or end the turn and
+let the completion notice arrive — do not take a second synchronous wait on the
+same job. One bounded wait is the rule; a second one is a defect that costs the
+session its responsiveness while the job runs anyway. Avoid loops of
+model-driven sleeps, unchanged log tails and repeated “still running” commentary.
+Preserve required user updates; summarize the stage and what its result will resolve.
+
+**A refusal is a decision, not a status.** When the helper rejects an attempt —
+same candidate already attempted, budget exhausted, missing evidence, a tier with
+no commands — it has already answered. Inspect the result or log it names and
+choose the next legal step; never wait on a job whose outcome was decided at
+launch, and never restate the same request under a new name. Read `plan` first so
+the refusal does not have to be discovered.
+
+**Infrastructure failure is not a code failure.** A message about billing,
+spending limits, quota, a disabled runner, an expired token or a forge outage is
+a project blocker: report it, name what it blocks, and stop. Do not spend the
+session reading CI logs or retrying a runner that cannot start; local gate
+evidence already in hand stands on its own.
 
 A retry requires a concrete `--retry-reason`, such as a verified environmental
 correction; the same source/tier/policy keeps its original deadline even when
@@ -117,3 +133,19 @@ in a new task; do not replay the whole project history. Continue an authorized
 queue without asking at every boundary; create another task only if the user
 requested one. On stopping with unreleased work, leave it in the handoff rather
 than silently making a release or losing the backlog.
+
+## Bound a pass, then hand off
+
+A large item is delivered as successive bounded passes, never as one unbounded
+one. Set the bound before starting — steps taken, wall-clock, or the point where
+the handoff already carries enough for someone else to continue — and treat
+reaching it as a normal outcome, not a failure. Then hand off: what is committed,
+the evidence and its limits, and exactly what the next pass should do first.
+
+The reason is context, not stamina. Everything a pass has read, run and printed
+stays in front of it, so a pass that overshoots keeps paying for its whole history
+on every step while its actual output per step shrinks. A fresh pass re-reads the
+handoff and the plan, not the transcript. Within a pass, a file already read is
+already known — edit against that read rather than reading it again, and send long
+command output to its log and read the tail instead of the whole thing. Re-reading
+and re-printing are the cheapest-looking ways to spend the most.
