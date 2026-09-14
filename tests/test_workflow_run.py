@@ -114,7 +114,7 @@ class WorkflowTests(unittest.TestCase):
     def test_real_timeout_is_waived_not_passed_and_cannot_restart(self):
         result = self.run_job(["sleep 10"])
         self.assertEqual(result["status"], "waived-timeout")
-        with self.assertRaisesRegex(ValueError, "budget exhausted"):
+        with self.assertRaisesRegex(ValueError, "budget exhausted.*record the outcome"):
             self.run_job(["true"], retry="corrected environment")
 
     def test_timeout_stops_descendant_process(self):
@@ -138,6 +138,26 @@ class WorkflowTests(unittest.TestCase):
             self.run_job(["true"])
         second = self.run_job(["true"], retry="corrected external fixture")
         self.assertEqual(first["deadline"], second["deadline"])
+
+    def test_refusals_name_the_next_legal_action(self):
+        """A refusal is a decision: the message must say what to do instead.
+
+        Observed failure mode: an agent answered a refusal by launching the same
+        attempt again (and sometimes waiting on it), because the message stated
+        the problem without naming the next legal step.
+        """
+        first = self.run_job(["false"])
+        with self.assertRaisesRegex(ValueError, "already attempted.*--retry-reason"):
+            self.run_job(["true"])
+        with self.assertRaisesRegex(ValueError, "Missing evidence.*run `plan`"):
+            w.record_merge(self.repo, self.overlay, self.root, "HEAD", 0, [])
+        command = [sys.executable, w.__file__, "--repo", str(self.repo)]
+        wrong_tier = subprocess.run([*command, "run", "--tier", "fast", "--command", "true"], capture_output=True, text=True)
+        self.assertNotEqual(wrong_tier.returncode, 0)
+        self.assertRegex(wrong_tier.stderr, "--command only supplies focused checks.*--tier focused")
+        no_checks = subprocess.run([*command, "run", "--tier", "focused"], capture_output=True, text=True)
+        self.assertNotEqual(no_checks.returncode, 0)
+        self.assertRegex(no_checks.stderr, "Supply meaningful focused checks.*--tier focused --command")
 
     def test_source_mutation_cannot_be_recorded_as_pass(self):
         result = self.run_job(["echo changed >> file"])

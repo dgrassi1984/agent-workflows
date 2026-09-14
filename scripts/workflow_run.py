@@ -174,10 +174,18 @@ def execute(repo, overlay, root, tier, commands, retry_reason=None):
     with lock(root / "attempt.lock"):
         old = json.loads(attempt.read_text()) if attempt.exists() else None
         if old and not retry_reason:
-            raise ValueError(f"Same candidate/commands already attempted; inspect {old['result']}. A retry requires --retry-reason and shares the original deadline.")
+            raise ValueError(
+                f"Same candidate/commands already attempted; inspect {old['result']} and its log. "
+                "A retry requires --retry-reason and shares the original deadline; otherwise change the "
+                "source (a new candidate) or record the outcome from the result you already have."
+            )
         deadline = old["deadline"] if old else time.time() + budget
         if deadline <= time.time():
-            raise ValueError("Original end-to-end budget exhausted; record the outcome instead of restarting")
+            raise ValueError(
+                "Original end-to-end budget exhausted; record the outcome instead of restarting. "
+                "Run `record-merge` with the results you have, or report the exhaustion as this "
+                "candidate's outcome. Only changed source creates a new deadline."
+            )
         atomic(attempt, {"deadline": deadline, "result": str(result_path), "retry_reason": retry_reason})
     result = {"status": "queued", "tier": tier, "head": head, "source_fingerprint": snap,
               "clean": not bool(git(repo, "status", "--porcelain")), "policy_hash": policy_hash(overlay),
@@ -269,7 +277,10 @@ def record_merge(repo, overlay, root, sha, expected_count, paths, timeout_review
         if overlay.get("gate_policy"):
             required.add("focused")
         if not required <= accepted:
-            raise ValueError(f"Missing evidence for {sorted(required - accepted)}")
+            raise ValueError(
+                f"Missing evidence for {sorted(required - accepted)}: run `plan` for the required "
+                "tiers, then `run --tier <tier>` (focused needs --command) for each one still missing."
+            )
         data["merges"].append({"sha": sha, "results": paths, "released": False})
         ordinal = len(data["merges"])
         for tier in accepted & {"fast", "full"}:
@@ -347,10 +358,17 @@ def main():
     if args.action == "run":
         tier = current["tier"] if args.tier == "auto" else args.tier
         if args.command and tier != "focused":
-            raise ValueError("--command only supplies focused checks; aggregate commands come from the overlay")
+            raise ValueError(
+                f"--command only supplies focused checks; this plan selected the {tier!r} tier, whose "
+                "commands come from the overlay. Run `--tier focused --command '<check>'`, or drop "
+                "--command, or fix `gate_policy.commands` in the overlay."
+            )
         commands = args.command if tier == "focused" else overlay.get("gate_policy", {}).get("commands", {}).get(tier, overlay.get("gate"))
         if not commands:
-            raise ValueError("Supply meaningful focused checks with --tier focused --command, or configure aggregate commands")
+            raise ValueError(
+                "Supply meaningful focused checks with --tier focused --command '<check>' (repeat "
+                "--command for ordered checks), or configure aggregate commands in gate_policy.commands."
+            )
         result = execute(repo, overlay, root, tier, commands, args.retry_reason)
         return 0 if result["status"] == "passed" else (124 if result["status"] == "waived-timeout" else 1)
     if args.action == "record-merge":
