@@ -87,6 +87,12 @@ selecting.
 - **A label in `issues.block_labels` means stop** — the shape is deliberately
   open and must not be invented by an agent. Skip it and say so. Unblocking it is
   `clarify-design.md`.
+- **Read the body, not only the label, for an open decision** — the same test as
+  `work-issue.md` step 0. An issue whose body still hands a choice to a human
+  ("owner's call", an open question, an unanswered approach question) is blocked
+  even when nobody has labelled it yet: skip it, label it per
+  `issues.block_labels`, and say which decision is missing. Selecting it because
+  it looks approved is how a batch spends its budget building a coin-flip.
 - **Skip anything already carrying `issues.claim_label`.** That is another
   session's claim. Do not strip it to take the issue — a leftover claim from a
   dead session is a human call. Also check remotes and open pull requests per

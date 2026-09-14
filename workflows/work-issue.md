@@ -80,6 +80,21 @@ deliberately open and must not be invented by an agent — stop, and say which
 decision is missing. The `issues.approved_label` means it is cleared to build.
 Something with neither is not forbidden, but say which you are working on.
 
+**The label is not the only test — the body is the authority.** Triage lags the
+issue, so read the body for a decision that is still open: a section that names a
+choice between alternatives and hands it to a human ("owner's call", "open
+questions", "TBD", an unanswered comment asking which approach to take, or a
+non-goal that leaves the main question open). If one is there, the shape is not
+yours to pick. Stop before the first edit, say which decision is missing and what
+each option would cost, add the first `issues.block_labels` label if the overlay
+allows it (respect `never_set`) so the next session sees it, and route it to
+`clarify-design.md`.
+
+Picking an alternative and building it anyway is the expensive failure: the code
+is real, the tests pass, and the decision was never the agent's. A build that
+reaches implementation on an undecided issue spends its whole budget and still
+cannot be accepted.
+
 ## 1. Branch — in a worktree of your own, never in the shared checkout
 
 `references/worktree-rule.md` is the canonical procedure and explains why; the
