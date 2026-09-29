@@ -6,6 +6,8 @@ import io
 import json
 import os
 from pathlib import Path
+import re
+import signal
 import subprocess
 import sys
 import tempfile
@@ -27,6 +29,13 @@ POLICY = {"schema": 1, "forge": {"default_branch": "main"},
           "commands": {"fast": ["true"], "full": ["true"]}, "timeout": "waive"},
           "ship": {"enabled": True, "release_cadence": "checkpoint", "release_every": 5},
           "gate_evidence": {"verify": "verify", "release": "release", "documentation": "docs/gate.md"}}
+HOLD_SLOT = """
+import fcntl, sys, time
+slot = open(sys.argv[1], "a+")
+fcntl.flock(slot, fcntl.LOCK_EX)
+print("held", flush=True)
+time.sleep(600)
+"""
 
 
 class WorkflowTests(unittest.TestCase):
@@ -43,7 +52,11 @@ class WorkflowTests(unittest.TestCase):
         w.git(self.repo, "commit", "-m", "initial")
         w.git(self.repo, "update-ref", "refs/remotes/origin/main", "HEAD")
         self.repo, self.overlay, self.root = w.load(self.repo)
-        self.slot = Path(self.tmp.name) / "heavy.lock"
+        # Where host_lock_path() lands under HOME=self.home, so a CLI run in a
+        # subprocess queues for the same slot as an in-process run.
+        self.home = Path(self.tmp.name) / "home"
+        self.slot = self.home / ".cache" / "agent-workflows" / "heavy.lock"
+        self.slot.parent.mkdir(parents=True)
         self.patcher = patch.object(w, "host_lock_path", return_value=self.slot)
         self.patcher.start()
         self.addCleanup(self.patcher.stop)
@@ -51,6 +64,15 @@ class WorkflowTests(unittest.TestCase):
     def run_job(self, commands, tier="focused", retry=None):
         with contextlib.redirect_stdout(io.StringIO()):
             return w.execute(self.repo, self.overlay, self.root, tier, commands, retry)
+
+    def hold_slot(self):
+        """Hold the host slot from another process, as a foreign heavy job does."""
+        holder = subprocess.Popen([sys.executable, "-c", HOLD_SLOT, str(self.slot)], stdout=subprocess.PIPE, text=True)
+        self.addCleanup(holder.stdout.close)
+        self.addCleanup(holder.wait)
+        self.addCleanup(holder.kill)
+        self.assertEqual(holder.stdout.readline(), "held\n")
+        return holder
 
     def test_intervals_full_supersedes_fast_and_counters_survive(self):
         data = w.state(self.root)
@@ -168,6 +190,103 @@ class WorkflowTests(unittest.TestCase):
             fcntl.flock(slot, fcntl.LOCK_EX)
             result = self.run_job(["true"])
         self.assertEqual(result["status"], "queue-timeout")
+
+    def test_queue_timeout_does_not_use_up_the_candidate(self):
+        """Regression: a run that never got the host slot used up its candidate.
+
+        The attempt record was written before the wait for the host slot, so a
+        queue-timeout left the candidate "already attempted", and a retry shared
+        the deadline the queue had exhausted: the candidate could not run again
+        until its source changed (drace, 2026-09-29, queued behind a worker
+        holding heavy.lock). Revert the fix and the run after the slot frees
+        raises. A candidate that timed out while running stays refused.
+        """
+        ran = self.root / "ran"
+        holder = self.hold_slot()
+        self.assertEqual(self.run_job([f"touch '{ran}'"])["status"], "queue-timeout")
+        self.assertFalse(ran.exists())
+        holder.kill()
+        holder.wait()
+        self.assertEqual(self.run_job([f"touch '{ran}'"])["status"], "passed")
+        self.assertTrue(ran.exists())
+
+        (self.repo / "file").write_text("next candidate")
+        self.assertEqual(self.run_job(["sleep 10"])["status"], "waived-timeout")
+        with self.assertRaisesRegex(ValueError, "already attempted"):
+            self.run_job(["true"])
+        with self.assertRaisesRegex(ValueError, "budget exhausted"):
+            self.run_job(["true"], retry="the slot is free now")
+
+    def test_queue_timeout_on_a_retry_keeps_the_outcome_it_retries(self):
+        """A retry that never got the slot must not erase the run that did.
+
+        Dropping the attempt record on every queue-timeout would reopen a
+        candidate that already failed; overwriting it at launch points the next
+        refusal at a result in which nothing ran.
+        """
+        failed = self.run_job(["exit 7"])
+        holder = self.hold_slot()
+        self.assertEqual(self.run_job(["true"], retry="corrected external fixture")["status"], "queue-timeout")
+        holder.kill()
+        holder.wait()
+        with self.assertRaisesRegex(ValueError, "already attempted; inspect " + re.escape(failed["result"])):
+            self.run_job(["true"])
+
+    def test_kill_while_queued_does_not_use_up_the_candidate(self):
+        """SIGKILL runs no cleanup, so only a claim that dies with its process
+        keeps a waiting candidate from being run twice without stranding it.
+
+        While a run waits for the slot, the same candidate is refused and
+        pointed at that run; once the waiting process is killed, it runs.
+        """
+        holder = self.hold_slot()
+        waiting = subprocess.Popen(
+            [sys.executable, w.__file__, "--repo", str(self.repo), "run", "--tier", "focused", "--command", "true"],
+            env={**os.environ, "HOME": str(self.home)}, stdout=subprocess.PIPE, text=True)
+        self.addCleanup(waiting.stdout.close)
+        self.addCleanup(waiting.wait)
+        self.addCleanup(waiting.kill)
+        queued = json.loads(waiting.stdout.readline())
+        self.assertEqual(queued["status"], "queued")
+        with self.assertRaisesRegex(ValueError, "already queued or running.*watch " + re.escape(queued["result"])):
+            self.run_job(["true"])
+        waiting.kill()
+        self.assertEqual(waiting.wait(), -signal.SIGKILL, "the run must be killed while it still waits")
+        holder.kill()
+        holder.wait()
+        self.assertEqual(self.run_job(["true"])["status"], "passed")
+
+    def test_record_left_at_launch_by_an_older_helper_does_not_bind(self):
+        """Older helpers wrote the attempt record at launch, so every run that
+        timed out, was stopped or was killed while queued left one behind that
+        kept refusing a candidate that never ran: 30 of drace's 387 records on
+        2026-09-29, the incident's among them. Such a record must not bind.
+        """
+        holder = self.hold_slot()
+        never_ran = self.run_job(["true"])
+        holder.kill()
+        holder.wait()
+        record = next((self.root / "attempts").glob("*.lock")).with_suffix(".json")
+        w.atomic(record, {"deadline": never_ran["deadline"], "result": never_ran["result"], "retry_reason": None})
+        self.assertEqual(self.run_job(["true"])["status"], "passed")
+
+    def test_only_a_record_whose_run_reached_a_command_binds(self):
+        cases = {"queue-timeout": ({"status": "queue-timeout"}, False),
+                 "stopped while queued": ({"status": "interrupted", "error": ""}, False),
+                 "killed while queued": ({"status": "queued"}, False),
+                 "stopped while running": ({"status": "interrupted", "stage": 1, "error": ""}, True),
+                 "failed": ({"status": "failed", "stage": 2, "exit_code": 7}, True),
+                 "unreadable result": ("{", True),
+                 "missing result": (None, True)}
+        for name, (result, binds) in cases.items():
+            with self.subTest(name):
+                path = self.root / "runs" / (name.replace(" ", "-") + ".json")
+                path.parent.mkdir(parents=True, exist_ok=True)
+                if isinstance(result, dict):
+                    w.atomic(path, result)
+                elif result is not None:
+                    path.write_text(result)
+                self.assertIs(w.started({"result": str(path)}), binds)
 
     def test_counter_recording_idempotent_and_checks_evidence(self):
         result = self.run_job(["true"])

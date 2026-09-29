@@ -50,11 +50,11 @@ model-driven sleeps, unchanged log tails and repeated “still running” commen
 Preserve required user updates; summarize the stage and what its result will resolve.
 
 **A refusal is a decision, not a status.** When the helper rejects an attempt —
-same candidate already attempted, budget exhausted, missing evidence, a tier with
-no commands — it has already answered. Inspect the result or log it names and
-choose the next legal step; never wait on a job whose outcome was decided at
-launch, and never restate the same request under a new name. Read `plan` first so
-the refusal does not have to be discovered.
+same candidate already attempted or still queued or running, budget exhausted,
+missing evidence, a tier with no commands — it has already answered. Inspect the
+result or log it names and choose the next legal step; never wait on a job whose
+outcome was decided at launch, and never restate the same request under a new
+name. Read `plan` first so the refusal does not have to be discovered.
 
 **Infrastructure failure is not a code failure.** A message about billing,
 spending limits, quota, a disabled runner, an expired token or a forge outage is
@@ -62,12 +62,17 @@ a project blocker: report it, name what it blocks, and stop. Do not spend the
 session reading CI logs or retrying a runner that cannot start; local gate
 evidence already in hand stands on its own.
 
-A retry requires a concrete `--retry-reason`, such as a verified environmental
-correction; the same source/tier/policy keeps its original deadline even when
-commands change. There is no automatic whole-suite retry. An exhausted budget
-is an outcome, not a reason to restart under another name. Fixing source inputs
-creates a new candidate. Apply the same discipline when a legacy gate runs
-without this helper.
+A candidate is used up when a run of it gets the host slot and starts, not when
+it is launched. A run that never started — a `queue-timeout`, or one stopped or
+killed while queued — has no outcome to record: run the same candidate again,
+without `--retry-reason`; it queues with a fresh budget. While one run of a
+candidate is queued or running, the helper refuses another; `watch` that one.
+Once a run has started, a retry requires a concrete `--retry-reason`, such as a
+verified environmental correction; the same source/tier/policy keeps its
+original deadline even when commands change. There is no automatic whole-suite
+retry. A budget exhausted by a run that started is an outcome, not a reason to
+restart under another name. Fixing source inputs creates a new candidate. Apply
+the same discipline when a legacy gate runs without this helper.
 
 ## Evidence and failures
 
