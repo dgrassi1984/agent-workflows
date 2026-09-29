@@ -162,6 +162,19 @@ def emit(data):
     print(json.dumps({"time": time.strftime("%H:%M:%S"), **data}), flush=True)
 
 
+def started(record):
+    """Whether an attempt record's run reached a command, so it has an outcome.
+
+    Older helpers wrote the record at launch: a run that timed out, was stopped
+    or was killed while queued left one behind that protects nothing. A result
+    that cannot be read counts as started, keeping the refusal on the safe side.
+    """
+    try:
+        return "stage" in json.loads(Path(record["result"]).read_text())
+    except (OSError, ValueError):
+        return True
+
+
 def execute(repo, overlay, root, tier, commands, retry_reason=None):
     policy = overlay.get("gate_policy", {})
     budget = policy.get("budgets_seconds", {}).get(tier, 1200)
@@ -171,78 +184,101 @@ def execute(repo, overlay, root, tier, commands, retry_reason=None):
     attempt = root / "attempts" / (identity + ".json")
     result_path = root / "runs" / (uuid.uuid4().hex + ".json")
     log_path = result_path.with_suffix(".log")
-    with lock(root / "attempt.lock"):
-        old = json.loads(attempt.read_text()) if attempt.exists() else None
-        if old and not retry_reason:
-            raise ValueError(
-                f"Same candidate/commands already attempted; inspect {old['result']} and its log. "
-                "A retry requires --retry-reason and shares the original deadline; otherwise change the "
-                "source (a new candidate) or record the outcome from the result you already have."
-            )
-        deadline = old["deadline"] if old else time.time() + budget
-        if deadline <= time.time():
-            raise ValueError(
-                "Original end-to-end budget exhausted; record the outcome instead of restarting. "
-                "Run `record-merge` with the results you have, or report the exhaustion as this "
-                "candidate's outcome. Only changed source creates a new deadline."
-            )
-        atomic(attempt, {"deadline": deadline, "result": str(result_path), "retry_reason": retry_reason})
-    result = {"status": "queued", "tier": tier, "head": head, "source_fingerprint": snap,
-              "clean": not bool(git(repo, "status", "--porcelain")), "policy_hash": policy_hash(overlay),
-              "deadline": deadline, "budget_seconds": budget, "commands": commands,
-              "log": str(log_path), "result": str(result_path), "retry_reason": retry_reason}
-    atomic(result_path, result)
-    emit({"status": "queued", "result": str(result_path), "log": str(log_path), "budget_seconds": budget})
-    host = host_lock_path()
-    host.parent.mkdir(parents=True, exist_ok=True)
-    process = None
-    # Keep the inherited lock descriptor in the child: killing the supervisor
-    # alone must not release the host slot while its heavy child still runs.
-    with host.open("a+") as slot, log_path.open("w") as log:
-        try:
-            while True:
-                if time.time() >= deadline:
-                    result["status"] = "queue-timeout"
-                    break
-                try:
-                    fcntl.flock(slot, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                    break
-                except BlockingIOError:
-                    time.sleep(min(0.25, max(0, deadline - time.time())))
-            if result["status"] != "queue-timeout":
-                for index, command in enumerate(commands):
-                    result.update(status="running", stage=index + 1)
-                    atomic(result_path, result)
-                    emit({"status": "running", "stage": index + 1})
-                    process = subprocess.Popen("set -o pipefail\n" + command, cwd=repo, shell=True, executable="/bin/bash", stdout=log, stderr=subprocess.STDOUT,
-                                               start_new_session=True, pass_fds=(slot.fileno(),))
-                    try:
-                        code = process.wait(timeout=max(0.001, deadline - time.time()))
-                    except subprocess.TimeoutExpired:
-                        stop_tree(process.pid)
-                        process.wait()
-                        result.update(status="timeout", exit_code=124)
-                        break
-                    process = None
-                    if code:
-                        # A child timeout is still a timeout, but cannot excuse
-                        # an earlier failed command: the loop stops on first error.
-                        result.update(status="timeout" if code == 124 else "failed", exit_code=code)
-                        break
-                else:
-                    result.update(status="passed", exit_code=0)
-                if fingerprint(repo) != snap:
-                    result.update(status="source-changed", exit_code=1)
-                if result["status"] == "timeout" and policy.get("timeout") == "waive":
-                    result.update(status="waived-timeout", waiver="gate_policy.timeout")
-        except (KeyboardInterrupt, OSError) as exc:
-            if process:
-                stop_tree(process.pid)
-                process.wait()
-            result.update(status="interrupted" if isinstance(exc, KeyboardInterrupt) else "infrastructure-error", error=str(exc))
-        finally:
-            result["finished_at"] = time.time()
+    attempt.parent.mkdir(parents=True, exist_ok=True)
+    # The attempt record exists to stop a re-roll after an executed outcome, so
+    # it is written only once this run holds the host slot. Until then the
+    # candidate is held by a claim: a lock, which ends with this process however
+    # it ends, so a run that times out, is stopped or is killed while queued
+    # leaves the candidate as it found it.
+    with attempt.with_suffix(".lock").open("a+") as claim:
+        with lock(root / "attempt.lock"):
+            try:
+                fcntl.flock(claim, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                claim.seek(0)
+                raise ValueError(
+                    f"Same candidate is already queued or running; `watch {claim.read()}` for its "
+                    "outcome instead of starting it again."
+                ) from None
+            old = json.loads(attempt.read_text()) if attempt.exists() else None
+            if old and not started(old):
+                old = None
+            if old and not retry_reason:
+                raise ValueError(
+                    f"Same candidate/commands already attempted; inspect {old['result']} and its log. "
+                    "A retry requires --retry-reason and shares the original deadline; otherwise change the "
+                    "source (a new candidate) or record the outcome from the result you already have."
+                )
+            deadline = old["deadline"] if old else time.time() + budget
+            if deadline <= time.time():
+                raise ValueError(
+                    "Original end-to-end budget exhausted; record the outcome instead of restarting. "
+                    "Run `record-merge` with the results you have, or report the exhaustion as this "
+                    "candidate's outcome. Only changed source creates a new deadline."
+                )
+            result = {"status": "queued", "tier": tier, "head": head, "source_fingerprint": snap,
+                      "clean": not bool(git(repo, "status", "--porcelain")), "policy_hash": policy_hash(overlay),
+                      "deadline": deadline, "budget_seconds": budget, "commands": commands,
+                      "log": str(log_path), "result": str(result_path), "retry_reason": retry_reason}
             atomic(result_path, result)
+            # Published under the attempt lock, after the result exists, so a
+            # refused duplicate always names a result it can watch.
+            claim.truncate(0)
+            claim.write(str(result_path))
+            claim.flush()
+        emit({"status": "queued", "result": str(result_path), "log": str(log_path), "budget_seconds": budget})
+        host = host_lock_path()
+        host.parent.mkdir(parents=True, exist_ok=True)
+        process = None
+        # Keep the inherited lock descriptor in the child: killing the supervisor
+        # alone must not release the host slot while its heavy child still runs.
+        with host.open("a+") as slot, log_path.open("w") as log:
+            try:
+                while True:
+                    if time.time() >= deadline:
+                        result["status"] = "queue-timeout"
+                        break
+                    try:
+                        fcntl.flock(slot, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        break
+                    except BlockingIOError:
+                        time.sleep(min(0.25, max(0, deadline - time.time())))
+                if result["status"] != "queue-timeout":
+                    with lock(root / "attempt.lock"):
+                        atomic(attempt, {"deadline": deadline, "result": str(result_path), "retry_reason": retry_reason})
+                    for index, command in enumerate(commands):
+                        result.update(status="running", stage=index + 1)
+                        atomic(result_path, result)
+                        emit({"status": "running", "stage": index + 1})
+                        process = subprocess.Popen("set -o pipefail\n" + command, cwd=repo, shell=True, executable="/bin/bash", stdout=log, stderr=subprocess.STDOUT,
+                                                   start_new_session=True, pass_fds=(slot.fileno(),))
+                        try:
+                            code = process.wait(timeout=max(0.001, deadline - time.time()))
+                        except subprocess.TimeoutExpired:
+                            stop_tree(process.pid)
+                            process.wait()
+                            result.update(status="timeout", exit_code=124)
+                            break
+                        process = None
+                        if code:
+                            # A child timeout is still a timeout, but cannot excuse
+                            # an earlier failed command: the loop stops on first error.
+                            result.update(status="timeout" if code == 124 else "failed", exit_code=code)
+                            break
+                    else:
+                        result.update(status="passed", exit_code=0)
+                    if fingerprint(repo) != snap:
+                        result.update(status="source-changed", exit_code=1)
+                    if result["status"] == "timeout" and policy.get("timeout") == "waive":
+                        result.update(status="waived-timeout", waiver="gate_policy.timeout")
+            except (KeyboardInterrupt, OSError) as exc:
+                if process:
+                    stop_tree(process.pid)
+                    process.wait()
+                result.update(status="interrupted" if isinstance(exc, KeyboardInterrupt) else "infrastructure-error", error=str(exc))
+            finally:
+                result["finished_at"] = time.time()
+                atomic(result_path, result)
     emit({k: result[k] for k in ("status", "tier", "exit_code", "result", "log", "error") if k in result})
     return result
 
