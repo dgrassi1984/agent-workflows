@@ -104,6 +104,10 @@ HARNESSES = (
     # (user-agents). ~/.dsh is the DSH-specific home, confirmed present
     # (settings.yaml). One level deep only: <root>/<name>/SKILL.md.
     Harness(key="dsh", root=".dsh/skills"),
+    # Antigravity reads skills from ~/.gemini/config/skills (confirmed present
+    # on this machine), and a live `agy -p` probe loaded a skill from that
+    # directory. Slash form is /<skill-name>, same as Claude.
+    Harness(key="antigravity", root=".gemini/config/skills"),
 )
 
 # Project-level roots the same harnesses actually scan inside a checkout.
@@ -700,6 +704,17 @@ def _git(cwd: Path, *args: str) -> subprocess.CompletedProcess[str]:
 def self_test() -> int:
     """Prove a repo install writes wrappers and gitignores exactly those files."""
     failed = 0
+
+    # Issue 10: Antigravity installs on the profile, and only there — a second
+    # project root of .agents/skills would collide with dsh in expected().
+    if Path(".gemini/config/skills/work-issue/SKILL.md") not in expected(HARNESSES):
+        print("antigravity profile root missing from expected(HARNESSES)", file=sys.stderr)
+        failed += 1
+    agents_roots = [h.root for h in PROJECT_HARNESSES if h.root == ".agents/skills"]
+    if len(agents_roots) != 1 or any(h.key == "antigravity" for h in PROJECT_HARNESSES):
+        print("PROJECT_HARNESSES gained an antigravity entry or a duplicate .agents/skills root",
+              file=sys.stderr)
+        failed += 1
 
     existing = "node_modules/\n.env\n"
     block = render_gitignore_block(["/.claude/skills/work-issue/"])
