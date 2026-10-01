@@ -60,6 +60,7 @@ that says so.
 | Codex | `~/.codex/skills` | `$work-issue` |
 | OpenCode | `~/.config/opencode/skills` | `/work-issue` |
 | DeepSeek Harness | `~/.dsh/skills` | `/work-issue` |
+| Antigravity | `~/.gemini/config/skills` | `/work-issue` |
 
 Each harness gets a short generated wrapper that **points** at
 `workflows/<name>.md` rather than copying it: one copy on disk, and an edit takes

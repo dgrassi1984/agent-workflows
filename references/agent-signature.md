@@ -42,13 +42,13 @@ it describes. Do not append it to the recap you just wrote.
 | key | value | guaranteed? |
 |---|---|---|
 | `ts` | UTC ISO-8601 of the comment, minute precision is enough | yes |
-| `harness` | `claude`, `codex`, `opencode` or `dsh` | **yes — deterministic** |
+| `harness` | `claude`, `codex`, `opencode`, `dsh` or `antigravity` | **yes — deterministic** |
 | `workflow` | the workflow you are running, from the closed set below | yes |
 | `action` | from the closed set below | yes |
 | `artifact` | the identifier the forge uses for the thing you commented on | yes |
 | `model` | the model that did the work | agent-claimed, not verifiable |
 
-`harness` is which of the four this repo installs into you are running as. Write
+`harness` is which of the five this repo installs into you are running as. Write
 `claude` for Claude Code, `dsh` for DeepSeek Harness. Do not write a marketing
 name or a wrapper path.
 
