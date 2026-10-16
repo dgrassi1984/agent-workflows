@@ -175,6 +175,14 @@ def started(record):
         return True
 
 
+# An attempt whose execution window (slot acquired -> deadline) is shorter
+# than the tier budget by more than this epsilon spent the missing time queued
+# for the host slot: it is starved, not timed out. Acquiring the slot within
+# STARVE_EPSILON of budget counts as a full window, so scheduling jitter cannot
+# reclassify an ordinary timeout as starvation.
+STARVE_EPSILON = 0.1
+
+
 def execute(repo, overlay, root, tier, commands, retry_reason=None):
     policy = overlay.get("gate_policy", {})
     budget = policy.get("budgets_seconds", {}).get(tier, 1200)
@@ -230,16 +238,20 @@ def execute(repo, overlay, root, tier, commands, retry_reason=None):
         host = host_lock_path()
         host.parent.mkdir(parents=True, exist_ok=True)
         process = None
+        acquired_at = None
         # Keep the inherited lock descriptor in the child: killing the supervisor
         # alone must not release the host slot while its heavy child still runs.
         with host.open("a+") as slot, log_path.open("w") as log:
             try:
+                queued_from = time.time()
                 while True:
                     if time.time() >= deadline:
-                        result["status"] = "queue-timeout"
+                        result.update(status="queue-timeout", queued_seconds=time.time() - queued_from, ran_seconds=0.0)
                         break
                     try:
                         fcntl.flock(slot, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                        acquired_at = time.time()
+                        result.update(queued_seconds=acquired_at - queued_from)
                         break
                     except BlockingIOError:
                         time.sleep(min(0.25, max(0, deadline - time.time())))
@@ -269,8 +281,15 @@ def execute(repo, overlay, root, tier, commands, retry_reason=None):
                         result.update(status="passed", exit_code=0)
                     if fingerprint(repo) != snap:
                         result.update(status="source-changed", exit_code=1)
-                    if result["status"] == "timeout" and policy.get("timeout") == "waive":
-                        result.update(status="waived-timeout", waiver="gate_policy.timeout")
+                    if result["status"] == "timeout":
+                        # Time queued for the host slot counts against the shared
+                        # end-to-end deadline, so a run whose execution window was
+                        # shorter than the tier budget never got the window it was
+                        # budgeted for: it is starved (queue-timeout), not waived.
+                        if deadline - acquired_at < budget - STARVE_EPSILON:
+                            result.update(status="queue-timeout", starved=True)
+                        elif policy.get("timeout") == "waive":
+                            result.update(status="waived-timeout", waiver="gate_policy.timeout")
             except (KeyboardInterrupt, OSError) as exc:
                 if process:
                     stop_tree(process.pid)
@@ -278,7 +297,19 @@ def execute(repo, overlay, root, tier, commands, retry_reason=None):
                 result.update(status="interrupted" if isinstance(exc, KeyboardInterrupt) else "infrastructure-error", error=str(exc))
             finally:
                 result["finished_at"] = time.time()
+                if acquired_at is not None:
+                    result["ran_seconds"] = result["finished_at"] - acquired_at
                 atomic(result_path, result)
+                if result["status"] == "queue-timeout" and acquired_at is not None:
+                    # A starved attempt leaves the candidate as it found it: the
+                    # attempt record written at slot acquisition is rolled back to
+                    # the record this run retried (if any), so a starved run never
+                    # blocks a fresh attempt the way an executed outcome does.
+                    with lock(root / "attempt.lock"):
+                        if old:
+                            atomic(attempt, old)
+                        else:
+                            attempt.unlink(missing_ok=True)
     emit({k: result[k] for k in ("status", "tier", "exit_code", "result", "log", "error") if k in result})
     return result
 

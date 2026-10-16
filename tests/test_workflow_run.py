@@ -36,6 +36,13 @@ fcntl.flock(slot, fcntl.LOCK_EX)
 print("held", flush=True)
 time.sleep(600)
 """
+HOLD_SLOT_BRIEFLY = """
+import fcntl, sys, time
+slot = open(sys.argv[1], "a+")
+fcntl.flock(slot, fcntl.LOCK_EX)
+print("held", flush=True)
+time.sleep(float(sys.argv[2]))
+"""
 
 
 class WorkflowTests(unittest.TestCase):
@@ -184,6 +191,47 @@ class WorkflowTests(unittest.TestCase):
     def test_source_mutation_cannot_be_recorded_as_pass(self):
         result = self.run_job(["echo changed >> file"])
         self.assertEqual(result["status"], "source-changed")
+
+    def test_starved_execution_window_is_queue_timeout_not_waived(self):
+        """Regression (issue #8): a gate that queued 19m20s of a 1200s budget,
+        ran 41s and was cut was recorded as a waived timeout, advancing the
+        checkpoint with no coverage. A timeout in an execution window shorter
+        than the tier budget is starvation, so it is queue-timeout: not waived
+        and refused by record-merge even with --timeout-reviewed under a waive
+        policy.
+        """
+        holder = subprocess.Popen([sys.executable, "-c", HOLD_SLOT_BRIEFLY, str(self.slot), "0.6"],
+                                  stdout=subprocess.PIPE, text=True)
+        self.addCleanup(holder.stdout.close)
+        self.addCleanup(holder.wait)
+        self.addCleanup(holder.kill)
+        self.assertEqual(holder.stdout.readline(), "held\n")
+        result = self.run_job(["sleep 10"])
+        holder.wait(timeout=10)
+        self.assertEqual(result["status"], "queue-timeout")
+        self.assertTrue(result.get("starved"))
+        self.assertGreaterEqual(result["queued_seconds"], 0.5)
+        self.assertGreater(result["ran_seconds"], 0.0)
+        with self.assertRaisesRegex(ValueError, "cannot advance the checkpoint"):
+            w.record_merge(self.repo, self.overlay, self.root, "HEAD", 0, [result["result"]], timeout_reviewed=True)
+
+    def test_starved_attempt_does_not_use_up_the_candidate(self):
+        holder = subprocess.Popen([sys.executable, "-c", HOLD_SLOT_BRIEFLY, str(self.slot), "0.6"],
+                                  stdout=subprocess.PIPE, text=True)
+        self.addCleanup(holder.stdout.close)
+        self.addCleanup(holder.wait)
+        self.addCleanup(holder.kill)
+        self.assertEqual(holder.stdout.readline(), "held\n")
+        self.assertEqual(self.run_job(["sleep 10"])["status"], "queue-timeout")
+        holder.wait(timeout=10)
+        self.assertEqual(self.run_job(["true"])["status"], "passed")
+
+    def test_full_budget_timeout_still_waives_and_records_durations(self):
+        result = self.run_job(["sleep 10"])
+        self.assertEqual(result["status"], "waived-timeout")
+        self.assertNotIn("starved", result)
+        self.assertLess(result["queued_seconds"], w.STARVE_EPSILON)
+        self.assertGreaterEqual(result["ran_seconds"], result["budget_seconds"] - w.STARVE_EPSILON)
 
     def test_host_slot_queue_timeout_is_not_waived(self):
         with self.slot.open("w") as slot:
