@@ -62,10 +62,12 @@ a project blocker: report it, name what it blocks, and stop. Do not spend the
 session reading CI logs or retrying a runner that cannot start; local gate
 evidence already in hand stands on its own.
 
-A candidate is used up when a run of it gets the host slot and starts, not when
-it is launched. A run that never started — a `queue-timeout`, or one stopped or
-killed while queued — has no outcome to record: run the same candidate again,
-without `--retry-reason`; it queues with a fresh budget. While one run of a
+A candidate is used up when a run of it gets the host slot and a full
+execution window, not when it is launched. A run that never started — or whose
+execution window was starved by queue wait, both recorded as `queue-timeout` —
+or one stopped or killed while queued has no outcome to record: run the same
+candidate again, without `--retry-reason`; a first attempt queues with a fresh
+budget. While one run of a
 candidate is queued or running, the helper refuses another; `watch` that one.
 Once a run has started, a retry requires a concrete `--retry-reason`, such as a
 verified environmental correction; the same source/tier/policy keeps its
